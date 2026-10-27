@@ -21,3 +21,5 @@ Pause/resume, custom date range & previous/next presets beyond ±offset, drag-an
 - `js/templates.js`: flat template library (no forced parents); add several at once, or ✎ to customise one first. Template ids are deterministic, so re-adding never duplicates.
 - Icons: Lucide library, emoji, or an uploaded image. Images are cropped to 96×96 WebP and stored inside the activity document (limit 30 KB in `firestore.rules`), so they persist and sync everywhere without Firebase Storage.
 - Redeploy the rules: `firebase deploy --only firestore:rules`.
+## Compact grids and entry dialog
+Activities and Types are icon tiles (icon above name, auto-fill grid; ▸ badge drills into sub-activities). On Time, the + button opens a Time / Type / Details dialog; clicking an existing entry opens the same dialog marked "Recorded". New entries use the start timestamp as their id and are rejected if they overlap an existing entry, so retries never duplicate.
