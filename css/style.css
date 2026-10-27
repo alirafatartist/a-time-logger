@@ -116,5 +116,5 @@ dialog h3{margin:0 0 .8rem}dialog label{display:block;margin-block:.6rem;font-si
 .time-filters .range-lbl{margin:.15rem 0 .25rem}
 .time-filters .mode-tabs{margin-top:.15rem}
 .day-list{display:block;width:100%}
-.day-sep{display:block;width:100%;margin:1rem 0 .45rem;font-size:.95rem;font-weight:700;color:var(--mut);border:0;padding:0 0 .35rem}
-.day-sep.day-today{color:var(--a);border-bottom:2px solid var(--a)}
+.day-sep{display:block;width:100%;margin:1rem 0 .45rem;font-size:.95rem;font-weight:700;color:var(--mut);padding:0 0 .4rem;border-bottom:2px solid var(--a)}
+.day-sep.day-today{color:var(--a)}
