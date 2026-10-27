@@ -13,3 +13,5 @@ Object.assign(D.en,{cal:'Calendar',snap:'Snap'});
 Object.assign(D.ar,{cal:'التقويم',snap:'محاذاة'});
 Object.assign(D.en,{editSess:'Edit Activity',intervals:'Intervals',addInterval:'Add Interval',needIv:'Keep at least one interval'});
 Object.assign(D.ar,{editSess:'تعديل النشاط',intervals:'الفترات',addInterval:'إضافة فترة',needIv:'لازم تفضل فترة واحدة على الأقل'});
+Object.assign(D.en,{trends:'Trends',granularity:'Granularity'});
+Object.assign(D.ar,{trends:'الاتجاهات',granularity:'التفصيل'});
