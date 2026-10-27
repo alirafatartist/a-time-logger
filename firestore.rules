@@ -1,0 +1,11 @@
+rules_version='2';
+service cloud.firestore{match /databases/{db}/documents{
+ function own(uid){return request.auth!=null&&request.auth.uid==uid}
+ match /users/{uid}{allow read,write:if own(uid);
+  match /activities/{id}{allow read:if own(uid);
+   allow create,update:if own(uid)&&request.resource.data.name is string&&request.resource.data.name.size()>0&&request.resource.data.name.size()<=80&&request.resource.data.parentId!=id;
+   allow delete:if own(uid)}
+  match /timeEntries/{id}{allow read:if own(uid);
+   allow create,update:if own(uid)&&request.resource.data.start is number&&request.resource.data.end is number&&request.resource.data.end>request.resource.data.start&&request.resource.data.activityId is string;
+   allow delete:if own(uid)}
+  match /{coll}/{id}{allow read,write:if own(uid)&&coll in ['goals','tracking','settings']}}}}

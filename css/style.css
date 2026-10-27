@@ -1,0 +1,19 @@
+:root{--bg:#1c1c1c;--card:#262626;--fg:#eee;--mut:#999;--pri:#0a7be0;--bd:#3a3a3a;--ok:#2fb344;--err:#e5484d}
+[data-theme=light]{--bg:#f4f5f7;--card:#fff;--fg:#1a1a1a;--mut:#666;--bd:#ddd}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px system-ui,"Segoe UI",Tahoma,sans-serif}
+.shell{display:grid;grid-template-rows:auto 1fr auto;min-height:100dvh}
+header{background:var(--pri);color:#fff;padding:.8rem 1rem;display:flex;justify-content:space-between;align-items:center}
+main{padding:1rem;max-width:900px;width:100%;margin:auto}
+nav{display:flex;background:#12202b;position:sticky;bottom:0}nav button{flex:1;padding:.7rem;background:none;border:0;border-block-end:3px solid transparent;border-radius:0;color:#ccc;font-size:.85rem}
+nav button.on{color:#fff;border-color:var(--pri)}nav i{display:block;font-style:normal;font-size:1.3rem}
+@media(min-width:800px){.shell{grid-template-columns:200px 1fr;grid-template-rows:auto 1fr}header{grid-column:1/3}nav{grid-row:2;flex-direction:column;position:static}nav button{text-align:start;border-block-end:0;border-inline-start:3px solid transparent}nav button.on{border-color:var(--pri)}nav i{display:inline;margin-inline-end:.5rem}}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:.7rem;margin-block:.5rem}
+.row{display:flex;align-items:center;gap:.5rem;padding:.45rem .2rem;border-block-end:1px solid var(--bd)}.row .g{flex:1;min-width:0}
+button,select,input,textarea{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:.4rem .7rem}
+button{cursor:pointer}button.p{background:var(--pri);color:#fff;border-color:var(--pri)}button.d{color:var(--err)}
+.tabs{display:flex;gap:.3rem;flex-wrap:wrap;margin-block:.5rem}.tabs .on{background:var(--pri);color:#fff}
+.bar{height:8px;background:var(--bd);border-radius:4px;overflow:hidden}.bar>div{height:100%;background:var(--ok)}
+.mut{color:var(--mut);font-size:.85rem}.big{font-size:1.8rem;font-variant-numeric:tabular-nums}
+#toast{position:fixed;inset-block-end:70px;inset-inline:0;text-align:center;pointer-events:none}#toast span{background:#000c;color:#fff;padding:.5rem 1rem;border-radius:20px}
+dialog{background:var(--card);color:var(--fg);border:1px solid var(--bd);border-radius:12px;min-width:min(92vw,380px)}dialog label{display:block;margin-block:.5rem}dialog input,dialog select,dialog textarea{width:100%}
+.auth{max-width:380px;margin:10vh auto;padding:1rem}.auth input{width:100%;margin-block:.3rem}
