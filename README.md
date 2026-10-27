@@ -16,3 +16,8 @@ Vanilla ES modules + Firebase Auth/Firestore + Chart.js. Arabic (RTL) / English 
 - Deleting a type with history archives it instead; its children move up one level.
 ## Known limitations (not built yet)
 Pause/resume, custom date range & previous/next presets beyond ±offset, drag-and-drop, searchable icon picker (emoji text field instead), streak/frequency/session-count goals (only time goals per day/week/month), goal reminders, browser notifications/PWA, appearance settings beyond language/theme/week start, pagination (loads latest 3000 entries), skeleton loaders, full tracking-settings parity with the Android app, UI tests. Native Android notification-bar controls and home-screen widgets cannot be reproduced by a web page.
+## Redesign notes
+- Design system in `css/style.css` (dark/light/system themes; the theme lives in `settings/preferences`, so it syncs live to every open session).
+- `js/templates.js`: flat template library (no forced parents); add several at once, or ✎ to customise one first. Template ids are deterministic, so re-adding never duplicates.
+- Icons: Lucide library, emoji, or an uploaded image. Images are cropped to 96×96 WebP and stored inside the activity document (limit 30 KB in `firestore.rules`), so they persist and sync everywhere without Firebase Storage.
+- Redeploy the rules: `firebase deploy --only firestore:rules`.
