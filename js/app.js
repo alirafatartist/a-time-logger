@@ -77,25 +77,28 @@ function vTime(){const[a,b]=U.range(S.per,S.off,S.prefs.weekStart),m=direct(a,b)
  if(S.mode==='chart')h='<div style="max-width:420px;margin:auto"><canvas id="ch"></canvas></div>';
  if(S.mode==='stats'){const rows=kids(null).map(r=>[r,subT(m,r.id)]).filter(r=>r[1]).sort((x,y)=>y[1]-x[1]);const lg=es.reduce((z,x)=>(x.end-x.start>(z?z.end-z.start:0)?x:z),null);
   h=`<div class="card">${t('tracked')}: <b>${U.dur(tot)}</b> · ${t('untracked')}: <b>${U.dur(un)}</b> · ${t('avg')}: <b>${U.dur(tot/days)}</b>${lg?`<br>${t('top')}: ${nm(lg.activityId)} ${U.dur(lg.end-lg.start)}`:''}</div>`+rows.map(([r,v])=>`<div class="card">${nm(r.id)} <b style="float:inline-end">${U.dur(v)} · ${Math.round(v/tot*100)}%</b><div class="bar"><div style="width:${v/tot*100}%"></div></div></div>`).join('')}
- if(S.mode==='cal'){h=`<div class="cal-toolbar bar2"><span class="bar2"><button data-x="zoom:-1" title="Zoom in">＋</button><button data-x="zoom:1" title="Zoom out" ${S.slotH<=28?'disabled':''}>−</button></span><span class="mut">${t('snap')}:</span><div class="tabs">${[1,5,15].map(m=>`<button class="${S.snap===m?'on':''}" data-x="snap:${m}">${m}m</button>`).join('')}</div></div><div id="fcal" class="fcal"></div>`}
+ if(S.mode==='cal'){h=`<div class="cal-wrap"><div class="cal-toolbar"><button class="zbtn" data-x="zoom:-1" title="Zoom in"><i data-lucide="zoom-in"></i></button><button class="zbtn" data-x="zoom:1" title="Zoom out" ${S.slotH<=28?'disabled':''}><i data-lucide="zoom-out"></i></button><span class="snap-lab">${t('snap')}:</span><div class="tabs">${[1,5,15].map(m=>`<button class="${S.snap===m?'on':''}" data-x="snap:${m}">${m}m</button>`).join('')}</div></div><div id="fcal" class="fcal"></div></div>`}
  return tabs+h}
 function drawChart(){const c=$('#ch');if(!c||!window.Chart)return;const[a,b]=U.range(S.per,S.off,S.prefs.weekStart),m=direct(a,b),r=kids(null).map(x=>[x,subT(m,x.id)]).filter(x=>x[1]);new Chart(c,{type:'doughnut',data:{labels:r.map(x=>x[0].name),datasets:[{data:r.map(x=>Math.round(x[1]/6e4)),backgroundColor:r.map(x=>x[0].color||'#0a7be0')}]},options:{plugins:{tooltip:{callbacks:{label:i=>` ${i.raw} min`}}}}})}
 function drawCal(){
   const el=$('#fcal');if(!el||!window.FullCalendar)return;
   if(S._fc){try{S._fc.destroy()}catch(_){}S._fc=null}
-  const snap=S.snap||5, slotMin=Math.max(20,S.slotH||48);
-  const events=eff().map(x=>{const a=A(x.activityId);return{id:x.sid||x.id,title:a?.name||'?',start:new Date(x.start),end:new Date(x.end),backgroundColor:a?.color||'#7c5cff',borderColor:a?.color||'#7c5cff',extendedProps:{sid:x.sid,eid:x.id,live:!!x.live}}});
-  const ws=S.prefs.weekStart===0?0:S.prefs.weekStart===1?1:6; // 0 Sun 1 Mon 6 Sat
+  const snap=S.snap||5, slotMin=Math.max(22,S.slotH||44);
+  el.style.setProperty('--slot-h', slotMin+'px');
+  const events=eff().map(x=>{const a=A(x.activityId);return{id:String(x.sid||x.id),title:a?.name||'?',start:new Date(x.start),end:new Date(x.end),backgroundColor:a?.color||'#7c5cff',borderColor:'transparent',textColor:'#fff',extendedProps:{sid:x.sid,eid:x.id,live:!!x.live}}});
+  const ws=+S.prefs.weekStart===0?0:+S.prefs.weekStart===1?1:6;
   S._fc=new FullCalendar.Calendar(el,{
     initialView:S.per==='day'?'timeGridDay':'timeGridWeek',
     initialDate:new Date(U.range(S.per==='day'?'day':'week',S.off,S.prefs.weekStart)[0]),
     headerToolbar:false,
-    height:'auto',
-    contentHeight:Math.max(420,slotMin*14),
+    height:'100%',
+    expandRows:true,
     slotDuration:{minutes:snap},
     snapDuration:{minutes:snap},
     slotMinTime:'00:00:00',slotMaxTime:'24:00:00',
     slotLabelInterval:'01:00:00',
+    slotLabelFormat:{hour:'numeric',minute:'2-digit',omitZeroMinute:true,meridiem:'short'},
+    dayHeaderFormat:{weekday:'short',month:'short',day:'numeric'},
     allDaySlot:false,
     nowIndicator:true,
     editable:true,
