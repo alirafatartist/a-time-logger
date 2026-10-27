@@ -111,3 +111,5 @@ dialog h3{margin:0 0 .8rem}dialog label{display:block;margin-block:.6rem;font-si
 .stats-sum{background:linear-gradient(135deg,color-mix(in srgb,var(--a) 22%,var(--s1)),color-mix(in srgb,var(--a2) 14%,var(--s1)));border-color:color-mix(in srgb,var(--a) 45%,var(--bd));box-shadow:0 8px 24px var(--glow)}
 .stats-sum b{color:var(--fg)}
 .cl-pct{color:var(--mut);font-size:.8rem;font-variant-numeric:tabular-nums;min-width:2.6rem;text-align:end}
+
+.day-today{display:inline-block;color:var(--a);border-bottom:2px solid var(--a);padding-bottom:.2rem;margin-bottom:.35rem}
