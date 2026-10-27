@@ -72,3 +72,16 @@ dialog h3{margin:0 0 .8rem}dialog label{display:block;margin-block:.6rem;font-si
 .fcal .fc-timegrid-now-indicator-line{border-color:var(--err);border-width:2px}
 .fcal .fc-timegrid-now-indicator-arrow{border-color:var(--err);border-top-color:transparent;border-bottom-color:transparent}
 .fcal .fc-day-today{background:color-mix(in srgb,var(--a) 8%,transparent)!important}
+
+/* Session edit dialog */
+.sess-edit{display:flex;flex-direction:column;gap:.35rem}
+.sess-edit .se-lab{margin:0;margin-top:.55rem;font-size:.8rem;color:var(--mut);font-weight:600}
+.sess-edit select,.sess-edit input[type=text],.sess-edit input[name=note],.sess-edit input[type=datetime-local]{width:100%;margin-top:.2rem}
+.se-status{margin:.25rem 0 .4rem}
+.iv-list{display:flex;flex-direction:column;gap:.45rem;margin:.35rem 0}
+.iv-row{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;padding:.45rem .55rem;border:1px solid var(--bd);border-radius:12px;background:var(--s2)}
+.iv-row input[type=datetime-local]{flex:1;min-width:9.5rem;font-size:.82rem;padding:.35rem .5rem}
+.iv-row .iv-del{padding:.3rem .5rem;border:0;background:transparent;color:var(--err)}
+.se-add{align-self:flex-start;margin-top:.25rem;background:var(--s2)}
+.sess-edit .acts{justify-content:flex-end}
+.sess-edit .acts .d{margin-inline-end:auto}

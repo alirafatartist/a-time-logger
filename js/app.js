@@ -52,15 +52,100 @@ function resume(x){if(!x||x.status!=='paused')return;const n=Date.now(),r=S.cur,
  b.set(sref(x.id),{...clean(x),status:'running',intervals:[...x.intervals,{s:n,e:null}],updatedAt:serverTimestamp()});run(()=>b.commit())}
 const start=id=>{if(S.cur?.activityId===id)return;const p=S.sess.filter(x=>x.status==='paused'&&x.activityId===id).sort((a,b)=>b.startedAt-a.startedAt)[0];p?resume(p):startSess(id)};
 const chip=st=>`<span class="chip ${st}">${{running:'●',paused:'❚❚',completed:'✓'}[st]} ${t('st_'+st)}</span>`;
-const sAct=x=>(x.status==='running'?`<button data-x="pause:${x.id}">❚❚ ${t('pause')}</button><button data-x="done:${x.id}">✓ ${t('complete')}</button>`:x.status==='paused'?`<button class="p" data-x="res:${x.id}">▶ ${t('resume')}</button><button data-x="done:${x.id}">✓ ${t('complete')}</button>`:'')+(x.intervals.length===1?`<button data-x="se:${x.id}">✎ ${t('edit')}</button>`:'')+`<button data-x="ss:${x.id}">${t('details')}</button>`;
+const sAct=x=>(x.status==='running'?`<button data-x="pause:${x.id}">❚❚ ${t('pause')}</button><button data-x="done:${x.id}">✓ ${t('complete')}</button>`:x.status==='paused'?`<button class="p" data-x="res:${x.id}">▶ ${t('resume')}</button><button data-x="done:${x.id}">✓ ${t('complete')}</button>`:'')+`<button data-x="se:${x.id}">✎ ${t('edit')}</button>`+`<button data-x="ss:${x.id}">${t('details')}</button>`;
 const sessCard=x=>{const a=A(x.activityId),f=x.intervals[0].s,l=x.intervals.at(-1);return `<div class="card sess ${x.status}"><div class="bar2">${ic(a)}<div class="g"><b>${e(a?.name||'?')}</b> ${chip(x.status)}<div class="mut">${t('startedOn')} ${fd(f)} ${ft(f)}${x.status==='paused'?` · ${t('pausedAt')} ${fd(l.e)} ${ft(l.e)}`:''}${x.status==='completed'?` → ${fd(l.e)} ${ft(l.e)}`:''}</div></div><b class="tt">${U.dur(sdur(x),1)}</b></div><div class="bar2">${sAct(x)}</div></div>`};
 const sessList=()=>{const f=S.sf||'all',cnt=k=>S.sess.filter(x=>x.status===k).length,L=S.sess.filter(x=>f==='all'||x.status===f).sort((a,b)=>(b.status==='running')-(a.status==='running')||b.intervals.at(-1).s-a.intervals.at(-1).s).slice(0,30);
  return `<h3 class="sh">${t('sessions')}</h3><div class="tabs">${[['all',t('all')+' '+S.sess.length],['running',t('st_running')+' '+cnt('running')],['paused',t('st_paused')+' '+cnt('paused')],['completed',t('st_completed')+' '+cnt('completed')]].map(([k,l])=>`<button class="${f===k?'on':''}" data-x="sf:${k}">${l}</button>`).join('')}</div>${L.map(sessCard).join('')||`<p class="mut">${t('empty')}</p>`}`};
-function sessDialog(id){const d=$('#dlg');d.onclick=d.oninput=d.onchange=d.onclose=null;const x=sess(id);if(!x)return;const a=A(x.activityId);
- const ivs=x.intervals.map((i,k)=>`<div class="row"><span class="g">${fd(i.s)} ${ft(i.s)} – ${i.e==null?'…':ft(i.e)}</span><b>${U.dur((i.e??Date.now())-i.s)}</b></div>${k<x.intervals.length-1?`<div class="mut">❚❚ ${ft(i.e)} – ${ft(x.intervals[k+1].s)} (${U.dur(x.intervals[k+1].s-i.e)})</div>`:''}`).join('');
- d.innerHTML=`<h3>${ic(a)} ${e(a?.name||'')} ${chip(x.status)}</h3>${x.note?`<p class="mut">${e(x.note)}</p>`:''}<div class="card">${ivs}</div><p><b>${U.dur(sdur(x),1)}</b></p><p class="acts"><button class="d" data-k="del">${t('del')}</button><button data-k="x">${t('close')}</button></p>`;
- d.onclick=ev=>{const k=ev.target.closest('button')?.dataset.k;if(k==='x')d.close();else if(k==='del'&&confirm(t('confirm'))){d.close();run(()=>deleteDoc(sref(id)))}};d.returnValue='';window.lucide?.createIcons();if(!d.open)d.showModal()}
-const sessEdit=x=>x&&entryDialog({id:x.id,sid:x.id,status:x.status,activityId:x.activityId,start:x.intervals[0].s,end:x.intervals[0].e,note:x.note,createdAt:x.createdAt});
+function sessDialog(id){sessEditDialog(id)}
+const sessEdit=x=>x&&sessEditDialog(x.id);
+function sessEditDialog(id){
+  const d=$('#dlg');d.onclick=d.oninput=d.onchange=d.onclose=null;
+  const src=sess(id);if(!src)return;
+  // working copy
+  let v={activityId:src.activityId,status:src.status,note:src.note||'',intervals:src.intervals.map(i=>({s:i.s,e:i.e??null}))};
+  const stMap={paused:'paused',running:'running',completed:'completed'};
+  const stLabel={paused:t('st_paused'),running:t('st_running'),completed:t('st_completed')};
+  // map UI "stopped" -> completed
+  const uiStatus=s=>s==='completed'?'stopped':s;
+  const fromUi=s=>s==='stopped'?'completed':s;
+  const fmtIv=i=>{const a=new Date(i.s),b=i.e!=null?new Date(i.e):null;
+    const f=d=>d.toLocaleString(loc(),{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    return f(a)+' – '+(b?f(b):'…')};
+  const ivInput=(i,k)=>`<div class="iv-row" data-ik="${k}"><input type="datetime-local" data-f="s" value="${lt(i.s)}"><span class="mut">–</span><input type="datetime-local" data-f="e" value="${i.e!=null?lt(i.e):''}" ${v.status==='running'&&k===v.intervals.length-1&&i.e==null?'disabled':''}><button type="button" class="d iv-del" data-deliv="${k}" title="${t('del')}">🗑</button></div>`;
+  const R=()=>{
+    const a=A(v.activityId);
+    d.innerHTML=`<form method="dialog" class="sess-edit"><div class="bar2" style="justify-content:space-between"><h3 style="margin:0">${t('editSess')}</h3><button type="button" data-k="x" class="zbtn" title="${t('close')}">✕</button></div>
+      <label class="se-lab">${t('status')}</label>
+      <div class="tabs se-status">${[['paused',t('st_paused')],['running',t('st_running')],['stopped',t('st_completed')]].map(([k,l])=>`<button type="button" class="${uiStatus(v.status)===k?'on':''}" data-st="${k}">${l}</button>`).join('')}</div>
+      <label class="se-lab">${t('act')}</label>
+      <select name="aid">${actOpts().map(([k,l])=>`<option value="${e(k)}" ${k===v.activityId?'selected':''}>${e(l)}</option>`).join('')}</select>
+      ${v.status==='running'?`<label class="se-lab">${t('from')}</label><input type="datetime-local" name="startNow" value="${lt(v.intervals[0]?.s||Date.now())}">`:''}
+      <label class="se-lab">${t('note')}</label>
+      <input name="note" value="${e(v.note)}" maxlength="200" placeholder="${t('note')}">
+      <label class="se-lab">${t('intervals')}</label>
+      <div class="iv-list">${v.intervals.map((i,k)=>ivInput(i,k)).join('')}</div>
+      <button type="button" data-addiv="1" class="se-add">＋ ${t('addInterval')}</button>
+      <p class="acts" style="margin-top:1rem"><button type="button" class="d" data-k="del">${t('del')}</button><button type="button" data-k="x">${t('cancel')}</button><button class="p" value="ok" data-k="save">${t('save')}</button></p></form>`;
+    window.lucide?.createIcons();
+  };
+  const readDom=()=>{
+    const aid=d.querySelector('[name=aid]')?.value;if(aid)v.activityId=aid;
+    v.note=d.querySelector('[name=note]')?.value||'';
+    const sn=d.querySelector('[name=startNow]');
+    d.querySelectorAll('.iv-row').forEach(row=>{
+      const k=+row.dataset.ik;if(!v.intervals[k])return;
+      const sEl=row.querySelector('[data-f=s]'),eEl=row.querySelector('[data-f=e]');
+      if(sEl?.value)v.intervals[k].s=+new Date(sEl.value);
+      if(eEl && !eEl.disabled){v.intervals[k].e=eEl.value?+new Date(eEl.value):null}
+    });
+    if(sn?.value && v.intervals[0])v.intervals[0].s=+new Date(sn.value);
+  };
+  const applyStatus=st=>{
+    readDom();
+    const prev=v.status;v.status=fromUi(st);
+    const n=Date.now();
+    if(v.status==='running'){
+      // close others running is handled on save; open last interval
+      if(!v.intervals.length)v.intervals=[{s:n,e:null}];
+      else{const last=v.intervals.at(-1);if(last.e!=null)v.intervals.push({s:n,e:null});else last.e=null}
+    }else{
+      // paused or completed: close open interval
+      v.intervals=v.intervals.map((i,k)=>k===v.intervals.length-1&&i.e==null?{...i,e:n}:i);
+      if(!v.intervals.length)v.intervals=[{s:n-6e5,e:n}];
+    }
+    R();
+  };
+  d.onclick=ev=>{
+    const b=ev.target.closest('button');if(!b)return;
+    const k=b.dataset.k,st=b.dataset.st,deliv=b.dataset.deliv;
+    if(k==='x'){d.close();return}
+    if(st){applyStatus(st);return}
+    if(b.dataset.addiv){readDom();const n=Date.now();v.intervals.push({s:n-18e5,e:n});if(v.status==='running'){v.intervals.forEach((i,idx)=>{if(idx<v.intervals.length-1&&i.e==null)i.e=n});v.intervals.at(-1).e=null}R();return}
+    if(deliv!==undefined){readDom();const i=+deliv;if(v.intervals.length<=1)return toast(t('needIv'));v.intervals.splice(i,1);R();return}
+    if(k==='del'){if(!confirm(t('confirm')))return;d.close();run(()=>deleteDoc(sref(id)));return}
+    if(k==='save'){
+      readDom();
+      // validate
+      for(const i of v.intervals){if(!i.s||(i.e!=null&&i.e<=i.s)){toast(t('bad'));return}}
+      if(v.status==='running'){
+        // only one open interval at end
+        v.intervals=v.intervals.map((i,k)=>k===v.intervals.length-1?{s:i.s,e:null}:{s:i.s,e:i.e??Date.now()});
+      }else{
+        v.intervals=v.intervals.map(i=>({s:i.s,e:i.e??Date.now()}));
+      }
+      if(!v.activityId){toast(t('pickType'));return}
+      // if setting this to running, pause any other running session
+      const b=writeBatch(db);
+      if(v.status==='running'){
+        for(const o of S.sess){if(o.id!==id&&o.status==='running')b.set(sref(o.id),{...clean(o),status:'paused',intervals:closeIv(o,Date.now()),updatedAt:serverTimestamp()})}
+      }
+      b.set(sref(id),{activityId:v.activityId,status:v.status,note:v.note,intervals:v.intervals,startedAt:src.startedAt||v.intervals[0].s,updatedAt:serverTimestamp(),createdAt:src.createdAt||serverTimestamp()});
+      d.close();run(()=>b.commit());
+    }
+  };
+  d.oninput=ev=>{/* live keep */};
+  d.returnValue='';R();if(!d.open)d.showModal();
+}
 const actOpts=(ex,none)=>[...(none?[['',t('none')]]:[]),...S.acts.filter(a=>!ex||!ex.has(a.id)).map(a=>[a.id,U.path(S.acts,a.id)])];
 async function delAct(a){if(!confirm(t('confirm')))return;
  if(S.entries.some(x=>x.activityId===a.id)||S.cur?.activityId===a.id){await run(()=>setDoc(dref('activities',a.id),{...clean(a),archived:true}));return toast(t('hasData'))}

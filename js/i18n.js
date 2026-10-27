@@ -11,3 +11,5 @@ Object.assign(D.en,{modePause:'Paused',rulesErr:'Save/sync failed. If it mention
 Object.assign(D.ar,{modePause:'متوقف مؤقتًا',rulesErr:'فشل الحفظ/المزامنة. لو الرسالة فيها "permission" انشر ملف firestore.rules من Firebase Console ← Firestore ← Rules. (اضغط للإخفاء)',imgUrl:'رابط الصورة',load:'تحميل',badUrl:'رابط الصورة غير صالح أو محظور'});
 Object.assign(D.en,{cal:'Calendar',snap:'Snap'});
 Object.assign(D.ar,{cal:'التقويم',snap:'محاذاة'});
+Object.assign(D.en,{editSess:'Edit Activity',intervals:'Intervals',addInterval:'Add Interval',needIv:'Keep at least one interval'});
+Object.assign(D.ar,{editSess:'تعديل النشاط',intervals:'الفترات',addInterval:'إضافة فترة',needIv:'لازم تفضل فترة واحدة على الأقل'});
