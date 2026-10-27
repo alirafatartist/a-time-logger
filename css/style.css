@@ -107,3 +107,7 @@ dialog h3{margin:0 0 .8rem}dialog label{display:block;margin-block:.6rem;font-si
 .fcal .fc-scroller{overflow-y:auto!important}
 .cal-wrap{max-height:min(70vh,720px)}
 .fcal{display:flex;flex-direction:column;min-height:0;overflow:auto}
+
+.stats-sum{background:linear-gradient(135deg,color-mix(in srgb,var(--a) 22%,var(--s1)),color-mix(in srgb,var(--a2) 14%,var(--s1)));border-color:color-mix(in srgb,var(--a) 45%,var(--bd));box-shadow:0 8px 24px var(--glow)}
+.stats-sum b{color:var(--fg)}
+.cl-pct{color:var(--mut);font-size:.8rem;font-variant-numeric:tabular-nums;min-width:2.6rem;text-align:end}
