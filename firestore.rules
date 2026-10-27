@@ -8,4 +8,5 @@ service cloud.firestore{match /databases/{db}/documents{
   match /timeEntries/{id}{allow read:if own(uid);
    allow create,update:if own(uid)&&request.resource.data.start is number&&request.resource.data.end is number&&request.resource.data.end>request.resource.data.start&&request.resource.data.activityId is string;
    allow delete:if own(uid)}
+  match /sessions/{id}{allow read,delete:if own(uid);allow create,update:if own(uid)&&request.resource.data.status in ['running','paused','completed']&&request.resource.data.intervals is list&&request.resource.data.intervals.size()<=500&&request.resource.data.activityId is string}
   match /{coll}/{id}{allow read,write:if own(uid)&&coll in ['goals','tracking','settings']}}}}

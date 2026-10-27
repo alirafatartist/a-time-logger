@@ -23,3 +23,5 @@ Pause/resume, custom date range & previous/next presets beyond ±offset, drag-an
 - Redeploy the rules: `firebase deploy --only firestore:rules`.
 ## Compact grids and entry dialog
 Activities and Types are icon tiles (icon above name, auto-fill grid; ▸ badge drills into sub-activities). On Time, the + button opens a Time / Type / Details dialog; clicking an existing entry opens the same dialog marked "Recorded". New entries use the start timestamp as their id and are rejected if they overlap an existing entry, so retries never duplicate.
+## Sessions (Running / Paused / Completed)
+`users/{uid}/sessions/{id}` = {activityId,status,note,intervals:[{s,e|null}]}. Tracked time = sum of intervals, so paused time is excluded; resuming appends an interval to the same session (no duplicate). Starting another activity pauses the running one at that instant. Manual entries are completed sessions (start/end date+time, may span midnight). Time page rows are derived from intervals. Legacy `tracking/current` timers are migrated automatically. Concurrent edits to the same session are last-write-wins.
