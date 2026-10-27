@@ -4,7 +4,7 @@ import {collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,query,orderBy,limi
 import {T} from './i18n.js';
 import * as U from './util.js';
 import {TPL} from './templates.js';
-const S={user:null,acts:[],entries:[],goals:[],cur:null,prefs:{lang:navigator.language.startsWith('ar')?'ar':'en',theme:'dark',weekStart:6},sess:[],tab:'act',lvl:null,tl:null,open:new Set(),per:'day',off:0,mode:'list',snap:5,slotH:48,more:'reports',sync:'loading',un:[],rep:{from:'',to:'',act:'',sub:true,notes:true,untr:true},_fc:null};
+const S={user:null,acts:[],entries:[],goals:[],cur:null,prefs:{lang:navigator.language.startsWith('ar')?'ar':'en',theme:'dark',weekStart:6},sess:[],curs:[],tab:'act',lvl:null,tl:null,open:new Set(),per:'day',off:0,mode:'list',snap:5,slotH:48,more:'reports',sync:'loading',un:[],rep:{from:'',to:'',act:'',sub:true,notes:true,untr:true},_fc:null};
 const $=s=>document.querySelector(s),t=k=>T(S.prefs.lang,k),loc=()=>S.prefs.lang==='ar'?'ar-EG':'en-GB',e=U.esc;
 // Prevent dialogs from closing when clicking the backdrop (Cancel / Escape buttons still work via form method=dialog or explicit close)
 $('#dlg')?.addEventListener('cancel',ev=>ev.preventDefault());
@@ -29,7 +29,7 @@ function subscribe(){S.un.forEach(f=>f());S.un=[];S.sr=S.lr=false;S.lg=null;cons
  S.un.push(onSnapshot(col('activities'),s=>{S.acts=s.docs.map(d=>({id:d.id,...d.data()}));S.sync=s.metadata.fromCache?'offline':'synced';if(!s.docs.length&&!s.metadata.fromCache)seed();draw()},er));
  S.un.push(onSnapshot(query(col('timeEntries'),orderBy('start','desc'),limit(3000)),s=>{S.entries=s.docs.map(d=>({id:d.id,...d.data()}));draw()},er));
  S.un.push(onSnapshot(col('goals'),s=>{S.goals=s.docs.map(d=>({id:d.id,...d.data()}));draw()},er));
- S.un.push(onSnapshot(query(col('sessions'),orderBy('startedAt','desc'),limit(500)),s=>{S.sess=s.docs.map(d=>({id:d.id,...d.data()}));S.cur=S.sess.find(x=>x.status==='running')||null;S.sr=true;S.err='';mig();draw()},er));
+ S.un.push(onSnapshot(query(col('sessions'),orderBy('startedAt','desc'),limit(500)),s=>{S.sess=s.docs.map(d=>({id:d.id,...d.data()}));S.curs=S.sess.filter(x=>x.status==='running');S.cur=S.curs[0]||null;S.sr=true;S.err='';mig();draw()},er));
  S.un.push(onSnapshot(dref('tracking','current'),s=>{S.lg=s.exists()&&s.data().activityId?s.data():null;S.lr=true;mig()},er)); // legacy single timer -> migrated to a running session once
  S.un.push(onSnapshot(dref('settings','preferences'),s=>{if(s.exists())Object.assign(S.prefs,s.data());draw()},er))}
 const DEF=[['sleep','😴','Sleep','النوم'],['food','🍽️','Food','الطعام'],['workout','🏋️','Workout','الرياضة'],['home','🏠','Home','المنزل'],['shopping','🛒','Shopping','التسوق'],['work','💼','Work','العمل'],['studying','📚','Studying','الدراسة'],['reading','📖','Reading','القراءة'],['transport','🚌','Transportation','المواصلات'],['fun','🎮','Entertainment','الاستمتاع'],['social','💬','Social','الاجتماعي'],['care','🧴','Personal Care','العناية الشخصية'],['prayer','🕌','Prayer','العبادة'],['family','👪','Family','العائلة'],['other','⭐','Other','أخرى']];
@@ -42,15 +42,14 @@ const sdur=(x,n=Date.now())=>x.intervals.reduce((a,i)=>a+Math.max(0,(i.e??n)-i.s
 const closeIv=(x,at)=>x.intervals.map((i,k)=>k===x.intervals.length-1&&i.e==null?{...i,e:at}:i);
 const sput=(x,p)=>setDoc(sref(x.id),{...clean(x),...p,updatedAt:serverTimestamp()});
 const mig=()=>{if(!S.sr||!S.lr||!S.lg)return;const c=S.lg;S.lg=null;const b=writeBatch(db);if(!S.sess.some(x=>x.id==='s'+c.start))b.set(sref('s'+c.start),{activityId:c.activityId,status:'running',note:'',intervals:[{s:c.start,e:null}],startedAt:c.start,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});b.delete(dref('tracking','current'));run(()=>b.commit())};
-const canStart=at=>{const n=Date.now();if(at>n+6e4)return t('future');const r=S.cur,o=r&&r.intervals.at(-1);if(r&&at<=o.s)return t('overlap');return U.overlaps(eff().filter(x=>!x.live),at,Math.max(n,at+1))?t('overlap'):''};
-function startSess(aid,at=Date.now(),note=''){at=Math.min(at,Date.now());const m=canStart(at);if(m)return toast(m);const b=writeBatch(db),r=S.cur;
- if(r)b.set(sref(r.id),{...clean(r),status:'paused',intervals:closeIv(r,at),updatedAt:serverTimestamp()}); // starting another activity pauses the running one
- b.set(sref('s'+at),{activityId:aid,status:'running',note,intervals:[{s:at,e:null}],startedAt:at,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});run(()=>b.commit())}
+const canStart=at=>{const n=Date.now();if(at>n+6e4)return t('future');return U.overlaps(eff().filter(x=>!x.live),at,Math.max(n,at+1))?t('overlap'):''};
+function startSess(aid,at=Date.now(),note=''){at=Math.min(at,Date.now());const m=canStart(at);if(m)return toast(m);const id='s'+at+'_'+Math.random().toString(36).slice(2,7);
+ run(()=>setDoc(sref(id),{activityId:aid,status:'running',note,intervals:[{s:at,e:null}],startedAt:at,createdAt:serverTimestamp(),updatedAt:serverTimestamp()}))}
 const pause=x=>x&&x.status==='running'&&run(()=>sput(x,{status:'paused',intervals:closeIv(x,Date.now())}));
 const complete=x=>x&&x.status!=='completed'&&run(()=>sput(x,{status:'completed',intervals:closeIv(x,Date.now())}));
-function resume(x){if(!x||x.status!=='paused')return;const n=Date.now(),r=S.cur,b=writeBatch(db);if(r)b.set(sref(r.id),{...clean(r),status:'paused',intervals:closeIv(r,n),updatedAt:serverTimestamp()});
- b.set(sref(x.id),{...clean(x),status:'running',intervals:[...x.intervals,{s:n,e:null}],updatedAt:serverTimestamp()});run(()=>b.commit())}
-const start=id=>{if(S.cur?.activityId===id)return;const p=S.sess.filter(x=>x.status==='paused'&&x.activityId===id).sort((a,b)=>b.startedAt-a.startedAt)[0];p?resume(p):startSess(id)};
+function resume(x){if(!x||x.status!=='paused')return;const n=Date.now();
+ run(()=>sput(x,{status:'running',intervals:[...x.intervals,{s:n,e:null}]}))}
+const start=id=>{if(S.sess.some(x=>x.status==='running'&&x.activityId===id))return;const p=S.sess.filter(x=>x.status==='paused'&&x.activityId===id).sort((a,b)=>b.startedAt-a.startedAt)[0];p?resume(p):startSess(id)};
 const chip=st=>`<span class="chip ${st}">${{running:'●',paused:'❚❚',completed:'✓'}[st]} ${t('st_'+st)}</span>`;
 const sAct=x=>(x.status==='running'?`<button data-x="pause:${x.id}">❚❚ ${t('pause')}</button><button data-x="done:${x.id}">✓ ${t('complete')}</button>`:x.status==='paused'?`<button class="p" data-x="res:${x.id}">▶ ${t('resume')}</button><button data-x="done:${x.id}">✓ ${t('complete')}</button>`:'')+`<button data-x="se:${x.id}">✎ ${t('edit')}</button>`+`<button data-x="ss:${x.id}">${t('details')}</button>`;
 const sessCard=x=>{const a=A(x.activityId),f=x.intervals[0].s,l=x.intervals.at(-1);return `<div class="card sess ${x.status}"><div class="bar2">${ic(a)}<div class="g"><b>${e(a?.name||'?')}</b> ${chip(x.status)}<div class="mut">${t('startedOn')} ${fd(f)} ${ft(f)}${x.status==='paused'?` · ${t('pausedAt')} ${fd(l.e)} ${ft(l.e)}`:''}${x.status==='completed'?` → ${fd(l.e)} ${ft(l.e)}`:''}</div></div><b class="tt">${U.dur(sdur(x),1)}</b></div><div class="bar2">${sAct(x)}</div></div>`};
@@ -134,13 +133,7 @@ function sessEditDialog(id){
         v.intervals=v.intervals.map(i=>({s:i.s,e:i.e??Date.now()}));
       }
       if(!v.activityId){toast(t('pickType'));return}
-      // if setting this to running, pause any other running session
-      const b=writeBatch(db);
-      if(v.status==='running'){
-        for(const o of S.sess){if(o.id!==id&&o.status==='running')b.set(sref(o.id),{...clean(o),status:'paused',intervals:closeIv(o,Date.now()),updatedAt:serverTimestamp()})}
-      }
-      b.set(sref(id),{activityId:v.activityId,status:v.status,note:v.note,intervals:v.intervals,startedAt:src.startedAt||v.intervals[0].s,updatedAt:serverTimestamp(),createdAt:src.createdAt||serverTimestamp()});
-      d.close();run(()=>b.commit());
+      d.close();run(()=>setDoc(sref(id),{activityId:v.activityId,status:v.status,note:v.note,intervals:v.intervals,startedAt:src.startedAt||v.intervals[0].s,updatedAt:serverTimestamp(),createdAt:src.createdAt||serverTimestamp()}));
     }
   };
   d.oninput=ev=>{/* live keep */};
@@ -151,10 +144,12 @@ async function delAct(a){if(!confirm(t('confirm')))return;
  if(S.entries.some(x=>x.activityId===a.id)||S.cur?.activityId===a.id){await run(()=>setDoc(dref('activities',a.id),{...clean(a),archived:true}));return toast(t('hasData'))}
  const b=writeBatch(db);S.acts.filter(c=>c.parentId===a.id).forEach(c=>b.update(dref('activities',c.id),{parentId:a.parentId||null}));b.delete(dref('activities',a.id));run(()=>b.commit())}
 // ---- views
-const tile=a=>{const k=kids(a.id).length;return `<div class="tile ${S.cur?.activityId===a.id?'on':''} ${S.sess.some(x=>x.status==='paused'&&x.activityId===a.id)?'pz':''}" data-x="st:${a.id}" role="button" tabindex="0">${ic(a)}<span class="n">${e(a.name)}</span>${k?`<button class="sub" data-x="lv:${a.id}">${k}▸</button>`:''}</div>`};
+const tile=a=>{const k=kids(a.id).length;return `<div class="tile ${S.sess.some(x=>x.status==='running'&&x.activityId===a.id)?'on':''} ${S.sess.some(x=>x.status==='paused'&&x.activityId===a.id)?'pz':''}" data-x="st:${a.id}" role="button" tabindex="0">${ic(a)}<span class="n">${e(a.name)}</span>${k?`<button class="sub" data-x="lv:${a.id}">${k}▸</button>`:''}</div>`};
 const todayMs=()=>{const[a,b]=U.range('day',0);return Object.values(direct(a,b)).reduce((x,y)=>x+y,0)};
 const streak=()=>{const ds=new Set(eff().map(x=>new Date(x.start).toDateString()));let n=0,d=new Date();if(!ds.has(d.toDateString()))d.setDate(d.getDate()-1);while(ds.has(d.toDateString())){n++;d.setDate(d.getDate()-1)}return n};
-const vAct=()=>`<section class="hero ${S.cur?'live':''}">${S.cur?`<div class="bar2">${ic(A(S.cur.activityId))}<div><h2>${e(A(S.cur.activityId)?.name||'')}</h2><div class="mut">${e(U.path(S.acts,S.cur.activityId))}</div></div></div><div class="big" data-tick>${U.dur(sdur(S.cur),1)}</div><div class="mut">${chip('running')} ${t('startedOn')} ${fd(S.cur.intervals[0].s)} ${ft(S.cur.intervals[0].s)}</div><p class="bar2"><button data-x="pause:${S.cur.id}">❚❚ ${t('pause')}</button><button data-x="done:${S.cur.id}">✓ ${t('complete')}</button></p>`:`<h2>${t('welcome')}</h2><div class="mut">${t('sub2')}</div><div class="big">00:00</div><span class="mut">${t('pick')}</span>`}</section><div class="stats"><div class="stat"><span class="mut">${t('today')}</span><b>${U.dur(todayMs())}</b></div><div class="stat"><span class="mut">${t('streak')}</span><b>🔥 ${streak()}</b></div><div class="stat"><span class="mut">${t('acts')}</span><b>${S.acts.filter(a=>!a.archived).length}</b></div></div>${S.lvl&&A(S.lvl)?`<div class="bar2"><button data-x="lv:${A(S.lvl).parentId||''}">‹ ${e(U.path(S.acts,S.lvl))}</button><button class="p" data-x="st:${S.lvl}">▶ ${t('start')}</button></div>`:''}<div class="tiles">${kids(S.lvl&&A(S.lvl)?S.lvl:null).map(tile).join('')}<div class="tile add" data-x="addhere">＋<span class="n">${t('add')}</span></div><div class="tile add" data-x="tpl">✨<span class="n">${t('templates')}</span></div></div>`;
+const vAct=()=>{const run=S.sess.filter(x=>x.status==='running');
+ const hero=run.length?run.map(x=>{const a=A(x.activityId);return `<div class="card sess running" style="margin:0 0 .5rem"><div class="bar2">${ic(a)}<div class="g"><b>${e(a?.name||'?')}</b> ${chip('running')}<div class="mut">${t('startedOn')} ${fd(x.intervals[0].s)} ${ft(x.intervals[0].s)}</div></div><b class="tt" data-tick="${x.id}">${U.dur(sdur(x),1)}</b></div><div class="bar2"><button data-x="pause:${x.id}">❚❚ ${t('pause')}</button><button data-x="done:${x.id}">✓ ${t('complete')}</button><button data-x="se:${x.id}">✎ ${t('edit')}</button></div></div>`}).join(''):`<section class="hero"><h2>${t('welcome')}</h2><div class="mut">${t('sub2')}</div><div class="big">00:00</div><span class="mut">${t('pick')}</span></section>`;
+ return `${run.length?`<section class="hero live" style="padding:1rem">${hero}</section>`:hero}<div class="stats"><div class="stat"><span class="mut">${t('today')}</span><b>${U.dur(todayMs())}</b></div><div class="stat"><span class="mut">${t('streak')}</span><b>🔥 ${streak()}</b></div><div class="stat"><span class="mut">${t('acts')}</span><b>${S.acts.filter(a=>!a.archived).length}</b></div></div>${S.lvl&&A(S.lvl)?`<div class="bar2"><button data-x="lv:${A(S.lvl).parentId||''}">‹ ${e(U.path(S.acts,S.lvl))}</button><button class="p" data-x="st:${S.lvl}">▶ ${t('start')}</button></div>`:''}<div class="tiles">${kids(S.lvl&&A(S.lvl)?S.lvl:null).map(tile).join('')}<div class="tile add" data-x="addhere">＋<span class="n">${t('add')}</span></div><div class="tile add" data-x="tpl">✨<span class="n">${t('templates')}</span></div></div>`};
 function vTime(){const[a,b]=U.range(S.per,S.off,S.prefs.weekStart),m=direct(a,b),tot=Object.values(m).reduce((x,y)=>x+y,0),un=U.untracked(eff(),a,b),days=Math.max(1,Math.ceil((Math.min(b,Date.now())-a)/864e5));
  const tabs=`<div class="tabs">${['day','week','month','year'].map(p=>`<button class="${S.per===p?'on':''}" data-x="per:${p}">${t(p)}</button>`).join('')}<button data-x="off:-1">‹</button><button data-x="off:1">›</button></div><div class="mut">${fd(a)} – ${fd(b-1)}</div><div class="tabs">${['list','chart','stats','cal'].map(p=>`<button class="${S.mode===p?'on':''}" data-x="mode:${p}">${t(p)}</button>`).join('')}</div>`;
  let h='';const es=eff().filter(x=>x.end>a&&x.start<b).sort((x,y)=>y.start-x.start);
@@ -308,8 +303,8 @@ document.addEventListener('click',async ev=>{const x=ev.target.closest('[data-x]
  ea:()=>actForm(A(v)),ar:()=>run(()=>setDoc(dref('activities',v),{...clean(A(v)),archived:!A(v).archived})),da:()=>delAct(A(v)),mo:()=>{S.more=v;draw()},rep:()=>report(1),out:()=>signOut(auth),
  li:()=>run(()=>signInWithEmailAndPassword(auth,$('#em').value,$('#pw').value)),re:()=>run(()=>createUserWithEmailAndPassword(auth,$('#em').value,$('#pw').value)),rs:()=>run(async()=>{await sendPasswordResetEmail(auth,$('#em').value);toast('✓')}),go:()=>run(()=>signInWithPopup(auth,new GoogleAuthProvider()))};H[k]?.()});
 document.addEventListener('change',ev=>{const p=ev.target.dataset.p,r=ev.target.dataset.r;if(p)savePref({[p]:p==='weekStart'?+ev.target.value:ev.target.value});if(r){S.rep[r]=ev.target.type==='checkbox'?ev.target.checked:ev.target.value;draw()}});
-setInterval(()=>S.cur&&document.querySelectorAll('[data-tick]').forEach(n=>n.textContent=U.dur(sdur(S.cur),1)),1000);
-if(configured)onAuthStateChanged(auth,u=>{S.un.forEach(f=>f());S.user=u;if(u)subscribe();else{S.acts=[];S.entries=[];S.sess=[];S.cur=null;draw()}});else draw();
+setInterval(()=>{for(const x of (S.curs||S.sess.filter(s=>s.status==='running'))){const el=document.querySelectorAll(`[data-tick="${CSS.escape(x.id)}"]`);el.forEach(n=>n.textContent=U.dur(sdur(x),1))}},1000);
+if(configured)onAuthStateChanged(auth,u=>{S.un.forEach(f=>f());S.user=u;if(u)subscribe();else{S.acts=[];S.entries=[];S.sess=[];S.curs=[];S.cur=null;draw()}});else draw();
 
 addEventListener('offline',()=>{S.sync='offline';draw()});addEventListener('online',()=>{S.sync='loading';draw()});matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>S.prefs.theme==='system'&&draw());
 document.addEventListener('keydown',ev=>{if((ev.key==='Enter'||ev.key===' ')&&ev.target.matches?.('[role=button]')){ev.preventDefault();ev.target.click()}});
