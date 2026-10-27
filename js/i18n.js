@@ -9,3 +9,5 @@ Object.assign(D.en,{st_running:'Running',st_paused:'Paused',st_completed:'Comple
 Object.assign(D.ar,{st_running:'قيد التشغيل',st_paused:'متوقف مؤقتًا',st_completed:'مكتمل',pause:'إيقاف مؤقت',resume:'استئناف',complete:'إنهاء',startedOn:'بدأ',pausedAt:'أُوقف عند',details:'التفاصيل',sessions:'الجلسات',future:'لا يمكن أن يكون وقت البدء في المستقبل.',startB:'ابدأ',modeRun:'قيد التشغيل',modeDone:'مكتمل',close:'إغلاق',paused:'متوقف',startAct:'بدء نشاط'});
 Object.assign(D.en,{modePause:'Paused',rulesErr:'Save/sync failed. If it mentions "permission", publish firestore.rules in Firebase Console → Firestore → Rules. (tap to dismiss)',imgUrl:'Image URL',load:'Load',badUrl:'Invalid or blocked image URL'});
 Object.assign(D.ar,{modePause:'متوقف مؤقتًا',rulesErr:'فشل الحفظ/المزامنة. لو الرسالة فيها "permission" انشر ملف firestore.rules من Firebase Console ← Firestore ← Rules. (اضغط للإخفاء)',imgUrl:'رابط الصورة',load:'تحميل',badUrl:'رابط الصورة غير صالح أو محظور'});
+Object.assign(D.en,{cal:'Calendar',snap:'Snap'});
+Object.assign(D.ar,{cal:'التقويم',snap:'محاذاة'});

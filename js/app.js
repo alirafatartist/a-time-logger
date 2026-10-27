@@ -4,7 +4,7 @@ import {collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,query,orderBy,limi
 import {T} from './i18n.js';
 import * as U from './util.js';
 import {TPL} from './templates.js';
-const S={user:null,acts:[],entries:[],goals:[],cur:null,prefs:{lang:navigator.language.startsWith('ar')?'ar':'en',theme:'dark',weekStart:6},sess:[],tab:'act',lvl:null,tl:null,open:new Set(),per:'day',off:0,mode:'list',more:'reports',sync:'loading',un:[],rep:{from:'',to:'',act:'',sub:true,notes:true,untr:true}};
+const S={user:null,acts:[],entries:[],goals:[],cur:null,prefs:{lang:navigator.language.startsWith('ar')?'ar':'en',theme:'dark',weekStart:6},sess:[],tab:'act',lvl:null,tl:null,open:new Set(),per:'day',off:0,mode:'list',snap:5,slotH:48,more:'reports',sync:'loading',un:[],rep:{from:'',to:'',act:'',sub:true,notes:true,untr:true},_fc:null};
 const $=s=>document.querySelector(s),t=k=>T(S.prefs.lang,k),loc=()=>S.prefs.lang==='ar'?'ar-EG':'en-GB',e=U.esc;
 // Prevent dialogs from closing when clicking the backdrop (Cancel / Escape buttons still work via form method=dialog or explicit close)
 $('#dlg')?.addEventListener('cancel',ev=>ev.preventDefault());
@@ -13,7 +13,7 @@ const toast=m=>{$('#toast').innerHTML=`<span>${e(m)}</span>`;setTimeout(()=>$('#
 const run=async f=>{try{await f()}catch(x){S.err=x.message;toast(x.message);draw()}};
 const eff=()=>{const n=Date.now(),o=[...S.entries];for(const x of S.sess)x.intervals.forEach((i,k)=>o.push({id:x.id+'_'+k,sid:x.id,activityId:x.activityId,start:i.s,end:i.e??n,note:x.note||'',live:i.e==null}));return o};
 const A=id=>S.acts.find(a=>a.id===id);
-const ic=(a,c='')=>a?.img?`<img class="ic ${c}" src="${e(a.img)}" alt="">`:a?.lucide?`<span class="ic ${c}" style="--c:${e(a.color||'#7c5cff')}"><i data-lucide="${e(a.lucide)}"></i></span>`:`<span class="ic emo ${c}">${e(a?.icon||'•')}</span>`;
+const ic=(a,c='')=>a?.img?`<img class="ic img ${c}" src="${e(a.img)}" alt="">`:a?.lucide?`<span class="ic ${c}" style="--c:${e(a.color||'#7c5cff')}"><i data-lucide="${e(a.lucide)}"></i></span>`:`<span class="ic emo ${c}">${e(a?.icon||'•')}</span>`;
 const nm=id=>A(id)?`${ic(A(id))}<span>${e(A(id).name)}</span>`:'?';
 const clean=a=>{const{id,...r}=a;return r};
 const kids=p=>S.acts.filter(a=>(a.parentId||null)===p&&!a.archived).sort((a,b)=>(a.order||0)-(b.order||0));
@@ -71,14 +71,62 @@ const todayMs=()=>{const[a,b]=U.range('day',0);return Object.values(direct(a,b))
 const streak=()=>{const ds=new Set(eff().map(x=>new Date(x.start).toDateString()));let n=0,d=new Date();if(!ds.has(d.toDateString()))d.setDate(d.getDate()-1);while(ds.has(d.toDateString())){n++;d.setDate(d.getDate()-1)}return n};
 const vAct=()=>`<section class="hero ${S.cur?'live':''}">${S.cur?`<div class="bar2">${ic(A(S.cur.activityId))}<div><h2>${e(A(S.cur.activityId)?.name||'')}</h2><div class="mut">${e(U.path(S.acts,S.cur.activityId))}</div></div></div><div class="big" data-tick>${U.dur(sdur(S.cur),1)}</div><div class="mut">${chip('running')} ${t('startedOn')} ${fd(S.cur.intervals[0].s)} ${ft(S.cur.intervals[0].s)}</div><p class="bar2"><button data-x="pause:${S.cur.id}">❚❚ ${t('pause')}</button><button data-x="done:${S.cur.id}">✓ ${t('complete')}</button></p>`:`<h2>${t('welcome')}</h2><div class="mut">${t('sub2')}</div><div class="big">00:00</div><span class="mut">${t('pick')}</span>`}</section><div class="stats"><div class="stat"><span class="mut">${t('today')}</span><b>${U.dur(todayMs())}</b></div><div class="stat"><span class="mut">${t('streak')}</span><b>🔥 ${streak()}</b></div><div class="stat"><span class="mut">${t('acts')}</span><b>${S.acts.filter(a=>!a.archived).length}</b></div></div>${S.lvl&&A(S.lvl)?`<div class="bar2"><button data-x="lv:${A(S.lvl).parentId||''}">‹ ${e(U.path(S.acts,S.lvl))}</button><button class="p" data-x="st:${S.lvl}">▶ ${t('start')}</button></div>`:''}<div class="tiles">${kids(S.lvl&&A(S.lvl)?S.lvl:null).map(tile).join('')}<div class="tile add" data-x="addhere">＋<span class="n">${t('add')}</span></div><div class="tile add" data-x="tpl">✨<span class="n">${t('templates')}</span></div></div>`;
 function vTime(){const[a,b]=U.range(S.per,S.off,S.prefs.weekStart),m=direct(a,b),tot=Object.values(m).reduce((x,y)=>x+y,0),un=U.untracked(eff(),a,b),days=Math.max(1,Math.ceil((Math.min(b,Date.now())-a)/864e5));
- const tabs=`<div class="tabs">${['day','week','month','year'].map(p=>`<button class="${S.per===p?'on':''}" data-x="per:${p}">${t(p)}</button>`).join('')}<button data-x="off:-1">‹</button><button data-x="off:1">›</button></div><div class="mut">${fd(a)} – ${fd(b-1)}</div><div class="tabs">${['list','chart','stats'].map(p=>`<button class="${S.mode===p?'on':''}" data-x="mode:${p}">${t(p)}</button>`).join('')}</div>`;
+ const tabs=`<div class="tabs">${['day','week','month','year'].map(p=>`<button class="${S.per===p?'on':''}" data-x="per:${p}">${t(p)}</button>`).join('')}<button data-x="off:-1">‹</button><button data-x="off:1">›</button></div><div class="mut">${fd(a)} – ${fd(b-1)}</div><div class="tabs">${['list','chart','stats','cal'].map(p=>`<button class="${S.mode===p?'on':''}" data-x="mode:${p}">${t(p)}</button>`).join('')}</div>`;
  let h='';const es=eff().filter(x=>x.end>a&&x.start<b).sort((x,y)=>y.start-x.start);
- if(S.mode==='list'){let last='';h=`<button class="p fab" data-x="newentry" aria-label="${t('manual')}">＋</button>`+(es.map(x=>{const g=fd(x.start),hd=g!==last?`<h4>${g}</h4>`:'';last=g;return hd+`<div class="row"><span class="g">${nm(x.activityId)}${x.sid?chip(sess(x.sid)?.status||'completed'):''}<div class="mut" style="flex-basis:100%">${ft(x.start)} – ${x.live?'…':ft(x.end)} ${x.note?'· '+e(x.note):''}</div></span><b>${U.dur(x.end-x.start)}</b>${x.sid?`<button data-x="ss:${x.sid}">✎</button>`:`<button data-x="ee:${x.id}">✎</button><button class="d" data-x="de:${x.id}">✕</button>`}</div>`}).join('')||`<p class="mut">${t('empty')}</p>`)}
+ if(S.mode==='list'){let last='';h=`<button class="p fab" data-x="newentry" aria-label="${t('manual')}">＋</button>`+(es.map(x=>{const g=fd(x.start),hd=g!==last?`<h4>${g}</h4>`:'';last=g;return hd+`<div class="row"><span class="g">${nm(x.activityId)}${x.sid?chip(sess(x.sid)?.status||'completed'):''}<div class="mut" style="flex-basis:100%">${ft(x.start)} – ${x.live?'…':ft(x.end)} ${x.note?'· '+e(x.note):''}</div></span><b>${U.dur(x.end-x.start)}</b>${x.sid?`<button data-x="se:${x.sid}">✎</button>`:`<button data-x="ee:${x.id}">✎</button><button class="d" data-x="de:${x.id}">✕</button>`}</div>`}).join('')||`<p class="mut">${t('empty')}</p>`)}
  if(S.mode==='chart')h='<div style="max-width:420px;margin:auto"><canvas id="ch"></canvas></div>';
  if(S.mode==='stats'){const rows=kids(null).map(r=>[r,subT(m,r.id)]).filter(r=>r[1]).sort((x,y)=>y[1]-x[1]);const lg=es.reduce((z,x)=>(x.end-x.start>(z?z.end-z.start:0)?x:z),null);
   h=`<div class="card">${t('tracked')}: <b>${U.dur(tot)}</b> · ${t('untracked')}: <b>${U.dur(un)}</b> · ${t('avg')}: <b>${U.dur(tot/days)}</b>${lg?`<br>${t('top')}: ${nm(lg.activityId)} ${U.dur(lg.end-lg.start)}`:''}</div>`+rows.map(([r,v])=>`<div class="card">${nm(r.id)} <b style="float:inline-end">${U.dur(v)} · ${Math.round(v/tot*100)}%</b><div class="bar"><div style="width:${v/tot*100}%"></div></div></div>`).join('')}
+ if(S.mode==='cal'){h=`<div class="cal-toolbar bar2"><span class="bar2"><button data-x="zoom:-1" title="Zoom in">＋</button><button data-x="zoom:1" title="Zoom out" ${S.slotH<=28?'disabled':''}>−</button></span><span class="mut">${t('snap')}:</span><div class="tabs">${[1,5,15].map(m=>`<button class="${S.snap===m?'on':''}" data-x="snap:${m}">${m}m</button>`).join('')}</div></div><div id="fcal" class="fcal"></div>`}
  return tabs+h}
 function drawChart(){const c=$('#ch');if(!c||!window.Chart)return;const[a,b]=U.range(S.per,S.off,S.prefs.weekStart),m=direct(a,b),r=kids(null).map(x=>[x,subT(m,x.id)]).filter(x=>x[1]);new Chart(c,{type:'doughnut',data:{labels:r.map(x=>x[0].name),datasets:[{data:r.map(x=>Math.round(x[1]/6e4)),backgroundColor:r.map(x=>x[0].color||'#0a7be0')}]},options:{plugins:{tooltip:{callbacks:{label:i=>` ${i.raw} min`}}}}})}
+function drawCal(){
+  const el=$('#fcal');if(!el||!window.FullCalendar)return;
+  if(S._fc){try{S._fc.destroy()}catch(_){}S._fc=null}
+  const snap=S.snap||5, slotMin=Math.max(20,S.slotH||48);
+  const events=eff().map(x=>{const a=A(x.activityId);return{id:x.sid||x.id,title:a?.name||'?',start:new Date(x.start),end:new Date(x.end),backgroundColor:a?.color||'#7c5cff',borderColor:a?.color||'#7c5cff',extendedProps:{sid:x.sid,eid:x.id,live:!!x.live}}});
+  const ws=S.prefs.weekStart===0?0:S.prefs.weekStart===1?1:6; // 0 Sun 1 Mon 6 Sat
+  S._fc=new FullCalendar.Calendar(el,{
+    initialView:S.per==='day'?'timeGridDay':'timeGridWeek',
+    initialDate:new Date(U.range(S.per==='day'?'day':'week',S.off,S.prefs.weekStart)[0]),
+    headerToolbar:false,
+    height:'auto',
+    contentHeight:Math.max(420,slotMin*14),
+    slotDuration:{minutes:snap},
+    snapDuration:{minutes:snap},
+    slotMinTime:'00:00:00',slotMaxTime:'24:00:00',
+    slotLabelInterval:'01:00:00',
+    allDaySlot:false,
+    nowIndicator:true,
+    editable:true,
+    eventStartEditable:true,
+    eventDurationEditable:true,
+    selectable:true,
+    selectMirror:true,
+    firstDay:ws,
+    direction:S.prefs.lang==='ar'?'rtl':'ltr',
+    locale:S.prefs.lang==='ar'?'ar':'en',
+    events,
+    eventClick(info){
+      const p=info.event.extendedProps;
+      if(p.sid)sessEdit(sess(p.sid));
+      else entryDialog(S.entries.find(i=>i.id===p.eid));
+    },
+    eventDrop(info){saveCalEvent(info.event)},
+    eventResize(info){saveCalEvent(info.event)},
+    select(sel){
+      entryDialog(null,{tab:'type',mode:'done',a:'',date:ymd(+sel.start),st:hm(+sel.start),edate:ymd(+sel.end),et:hm(+sel.end),n:''});
+      S._fc.unselect();
+    }
+  });
+  S._fc.render();
+}
+function saveCalEvent(ev){
+  const p=ev.extendedProps,s=+ev.start,en=+ev.end;
+  if(p.sid){const x=sess(p.sid);if(!x)return;run(()=>sput(x,{intervals:[{s,e:en}],status:x.status==='running'?'completed':x.status}))}
+  else if(p.eid)run(()=>setDoc(dref('timeEntries',p.eid),{...S.entries.find(i=>i.id===p.eid),start:s,end:en,updatedAt:serverTimestamp()}));
+}
+
 function prog(g){const[a,b]=U.range(g.period,0,S.prefs.weekStart),m=direct(a,b),v=subT(m,g.activityId)/6e4;return[v,Math.min(100,v/g.target*100)]}
 const vGoals=()=>`<button data-x="newgoal">＋ ${t('add')}</button>`+(S.goals.map(g=>{const[v,p]=prog(g);return `<div class="card">${e(g.name)} · ${nm(g.activityId)} <button class="d" data-x="dg:${g.id}" style="float:inline-end">✕</button><div class="bar"><div style="width:${p}%"></div></div><span class="mut">${Math.round(v)} / ${g.target} min (${Math.round(p)}%)</span></div>`}).join('')||`<p class="mut">${t('empty')}</p>`);
 const vTypes=()=>{const L=S.tl&&A(S.tl)?S.tl:null,list=S.acts.filter(a=>L?a.parentId===L:(!a.parentId||!A(a.parentId))).sort((x,y)=>(x.order||0)-(y.order||0));
@@ -98,7 +146,7 @@ function draw(){const d=document.documentElement;d.lang=S.prefs.lang;d.dir=S.pre
  if(!S.user){$('#app').innerHTML=vAuth();window.lucide?.createIcons();return}
  const tabs=[['act','play'],['time','chart-pie'],['goals','target'],['types','layers'],['more','ellipsis']],V={act:vAct,time:vTime,goals:vGoals,types:vTypes,more:vMore};
  $('#app').innerHTML=`<div class="shell"><aside class="side"><div class="brand"><i data-lucide="timer"></i>Time Logger</div><nav>${tabs.map(([k,i])=>`<button class="${S.tab===k?'on':''}" data-x="tab:${k}"><i data-lucide="${i}"></i><span>${t(k)}</span></button>`).join('')}</nav></aside><section class="page"><header class="top"><h1>${t(S.tab)}</h1><span class="pill ${S.sync}">${t('s_'+S.sync)}</span></header>${S.err?`<div class="banner" data-x="dis">${t('rulesErr')}<br><small>${e(S.err)}</small></div>`:''}<main class="view" ${S.tab==='act'?'':''}>${S.sync==='loading'&&!S.acts.length?'<div class="sk"></div><div class="sk"></div><div class="sk"></div>':V[S.tab]()}</main></section></div>`;
- window.lucide?.createIcons();if(S.tab==='time'&&S.mode==='chart')drawChart()}
+ window.lucide?.createIcons();if(S.tab==='time'&&S.mode==='chart')drawChart();if(S.tab==='time'&&S.mode==='cal')drawCal()}
 // ---- icon picker dialog + templates + image upload (96px WebP stored in the activity doc => syncs & persists everywhere)
 const toImg=src=>new Promise((ok,no)=>{const i=new Image();i.crossOrigin='anonymous';i.onload=()=>{const c=document.createElement('canvas');c.width=c.height=96;const m=Math.min(i.width,i.height);c.getContext('2d').drawImage(i,(i.width-m)/2,(i.height-m)/2,m,m,0,0,96,96);ok(c.toDataURL('image/webp',.8))};i.onerror=no;i.src=typeof src==='string'?src:URL.createObjectURL(src)});
 const LUC='activity airplay alarm-clock album align-center align-left anchor apartment apple archive arrow-down arrow-left arrow-right arrow-up at-sign award baby backpack badge banana banknote barcode bath battery bed beer bell bike binary bluetooth bold book book-marked book-open bookmark bot box briefcase brush bug building building-2 bus cake calculator calendar camera car carrot cast cat chart-bar chart-column chart-line chart-pie check check-circle chef-hat cherry chess church cigarette circle clipboard clock cloud cloud-rain code code-2 coffee cog coins columns command compass computer concierge-bell contact cookie cooking-pot copy credit-card crop cross crown cup-soda database delete diamond dice-5 disc dollar-sign door-closed door-open download droplets drum dumbbell ear earth edit egg euro eye facebook factory fan feather file file-code file-text film filter fingerprint fire flame flashlight flask-conical flower flower-2 focus folder football footprint footprints frown fuel gamepad gamepad-2 gauge gem ghost gift git-branch github glasses globe graduation-cap grape grid-2x2 hammer hand hand-heart hard-drive hash headphones heart heart-handshake heart-pulse help-circle home home-home hourglass house ice-cream image inbox infinity info instagram key keyboard lamp languages laptop layers layout leaf library life-buoy lightbulb link list loader lock log-in log-out luggage mail map map-pin medal megaphone menu message-circle message-square mic microscope milestone milk minimize monitor monitor-play moon moon-star mountain mouse move music navigation network newspaper nut package paintbrush palette paperclip party-popper pause pen pen-line pen-tool pencil percent phone phone-call pie-chart piggy-bank pin pizza plane plane-takeoff play play-circle plug plus pocket pointer popcorn power presentation printer puzzle qr-code quote radio rainbow receipt recycle refresh-cw reply rewind rocket route ruler save scale school scissors screen-share search send server settings share shield ship shirt shopping-bag shopping-cart shovel shower-head shrink sigma signal smartphone smile snowflake sofa soup sparkles speaker spell-check spline split square star sticker store stretch-horizontal stretch-vertical stethoscope sun sunrise sunset swiss-franc sword table tablet tag target tent terminal thermometer thumbs-up ticket timer timer-reset toggle-left tool toolbox toy-brick train tram-front trash tree-deciduous tree-pine trees trophy truck tv type umbrella university upload user user-check user-plus users users-round utensils utensils-crossed variable vegan video video-off voicemail volume wallet wand watch waves webcam wifi wind wine workflow wrench youtube zap zoom-in'.split(' ');
@@ -138,12 +186,12 @@ const hm=ts=>{const d=new Date(ts);return String(d.getHours()).padStart(2,'0')+'
 const ymd=ts=>lt(ts).slice(0,10);
 const span=v=>[+new Date(v.date+'T'+v.st),+new Date((v.edate||v.date)+'T'+(v.et||v.st))];
 function entryDialog(en,v){const d=$('#dlg');d.onclick=d.oninput=d.onchange=d.onclose=null;const now=Date.now(),t0=now-18e5;
- v=v||{tab:'time',mode:en?(en.status==='running'?'run':en.status==='paused'?'pause':'done'):'run',a:en?.activityId||'',date:ymd(en?.start??t0),st:hm(en?.start??t0),edate:ymd(en?.end??now),et:hm(en?.end??now),n:en?.note||''};
+ v=v||{tab:en?'det':'time',mode:en?(en.status==='running'?'run':en.status==='paused'?'pause':'done'):'run',a:en?.activityId||'',date:ymd(en?.start??t0),st:hm(en?.start??t0),edate:ymd(en?.end??now),et:hm(en?.end??now),n:en?.note||''};
  const ro=v.mode==='run',run_=ro&&!en,pz=v.mode==='pause',rc=[],seen=new Set();for(const x of S.entries){const k=x.activityId+'|'+(x.note||'');if(!seen.has(k)&&A(x.activityId)){seen.add(k);rc.push(x)}if(rc.length>=6)break}
  const dur=()=>{const[s,x]=span(v);return ro?U.dur(Math.max(0,Date.now()-s)):U.dur(x-s)};
  const setEnd=ms=>{v.edate=ymd(ms);v.et=hm(ms)};
  const row=(k,l)=>`<div class="fr"><label>${l}<input type="time" name="${k}" value="${v[k]}" required></label><span class="bar2"><button type="button" data-now="${k}">${t('now')}</button><button type="button" data-adj="${k}:-5">−5</button><button type="button" data-adj="${k}:5">+5</button></span></div>`;
- const P={time:()=>row('st',t('from'))+(ro?'':row('et',t(pz?'pausedAt':'to'))+`<label>${t('duration')}<input name="du" id="du" value="${dur()}" inputmode="numeric" pattern="\\d{1,3}:[0-5]\\d" style="width:7rem"></label><div class="chips">${[15,30,60,120].map(m=>`<button type="button" data-q="${m}">${m<60?m+'m':m/60+'h'}</button>`).join('')}</div>`)+(rc.length?`<label>${t('recent')}</label><div class="chips">${rc.map((x,i)=>`<button type="button" data-rc="${i}">${e(A(x.activityId).name)}${x.note?' · '+e(x.note.slice(0,14)):''}</button>`).join('')}</div>`:''),
+ const P={time:()=> (en?`<div class="fr"><label>${t('from')}<input type="date" name="date" value="${v.date}" required></label><label>${t('from')}<input type="time" name="st" value="${v.st}" required></label></div>${ro?'':`<div class="fr"><label>${t(pz?'pausedAt':'to')}<input type="date" name="edate" value="${v.edate}" required></label><label>${t(pz?'pausedAt':'to')}<input type="time" name="et" value="${v.et}" required></label></div>`}`:row('st',t('from'))+(ro?'':row('et',t(pz?'pausedAt':'to'))))+(ro?'':`<label>${t('duration')}<input name="du" id="du" value="${dur()}" inputmode="numeric" pattern="\\d{1,3}:[0-5]\\d" style="width:7rem"></label><div class="chips">${[15,30,60,120].map(m=>`<button type="button" data-q="${m}">${m<60?m+'m':m/60+'h'}</button>`).join('')}</div>`)+(rc.length&&!en?`<label>${t('recent')}</label><div class="chips">${rc.map((x,i)=>`<button type="button" data-rc="${i}">${e(A(x.activityId).name)}${x.note?' · '+e(x.note.slice(0,14)):''}</button>`).join('')}</div>`:''),
  type:()=>`<div class="tiles sm" style="max-height:46vh;overflow:auto">${S.acts.filter(a=>!a.archived||a.id===v.a).sort((x,y)=>(x.order||0)-(y.order||0)).map(a=>`<div class="tile ${v.a===a.id?'on':''}" data-a="${a.id}" title="${e(U.path(S.acts,a.id))}" role="button" tabindex="0">${ic(a)}<span class="n">${e(a.name)}</span></div>`).join('')}<div class="tile add" data-nt="1">＋<span class="n">${t('newType')}</span></div></div>`,
  det:()=>`<div class="fr"><label>${t('from')}<input type="date" name="date" value="${v.date}" required></label><label>${t('from')}<input type="time" name="st" value="${v.st}" required></label></div>${ro?'':`<div class="fr"><label>${t(pz?'pausedAt':'to')}<input type="date" name="edate" value="${v.edate}" required></label><label>${t(pz?'pausedAt':'to')}<input type="time" name="et" value="${v.et}" required></label></div>`}<label>${t('note')}<input name="n" value="${e(v.n)}" maxlength="200" placeholder="${t('note')}"></label><div class="pv">${A(v.a)?ic(A(v.a))+`<b>${e(A(v.a).name)}</b>`:`<span class="mut">${t('pickType')}</span>`}<span class="mut">${dur()}</span></div>`};
  const chk=()=>{if(!A(v.a)){v.tab='type';R();return t('pickType')}if(!v.date||!v.st)return t('bad');const[s,x]=span(v);if(run_)return canStart(s);if(ro){const n=Date.now();return s>n+6e4?t('future'):U.overlaps(eff().filter(z=>z.sid!==en?.sid),s,n)?t('overlap'):''}if(!v.et||!(x>s))return t('bad');if(x>Date.now()+6e4)return t('future');if(U.overlaps(eff().filter(z=>z.sid!==en?.sid&&z.id!==en?.id),s,x))return t('overlap')};
@@ -167,7 +215,7 @@ function entryDialog(en,v){const d=$('#dlg');d.onclick=d.oninput=d.onchange=d.on
  d.returnValue='';R();if(!d.open)d.showModal()}
 // ---- events
 document.addEventListener('click',async ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;const[k,v]=x.split(/:(.*)/);
- const H={tpl:()=>tplDialog(),dup:()=>run(()=>setDoc(dref('activities',crypto.randomUUID()),{...clean(A(v)),name:A(v).name+' (copy)',createdAt:serverTimestamp()})),tab:()=>{S.tab=v;draw()},tg:()=>{S.open.has(v)?S.open.delete(v):S.open.add(v);draw()},st:()=>start(v),pause:()=>pause(sess(v)),done:()=>complete(sess(v)),res:()=>resume(sess(v)),ss:()=>sessDialog(v),se:()=>sessEdit(sess(v)),sf:()=>{S.sf=v;draw()},dis:()=>{S.err='';draw()},ch:()=>actForm(null,v),newact:()=>actForm(null,''),per:()=>{S.per=v;S.off=0;draw()},off:()=>{S.off+=+v;draw()},mode:()=>{S.mode=v;draw()},newentry:()=>entryDialog(),ee:()=>entryDialog(S.entries.find(i=>i.id===v)),lv:()=>{S.lvl=v||null;draw()},tl:()=>{S.tl=v||null;draw()},addhere:()=>actForm(null,S.lvl||''),addtl:()=>actForm(null,S.tl||''),de:()=>confirm(t('confirm'))&&run(()=>deleteDoc(dref('timeEntries',v))),
+ const H={tpl:()=>tplDialog(),dup:()=>run(()=>setDoc(dref('activities',crypto.randomUUID()),{...clean(A(v)),name:A(v).name+' (copy)',createdAt:serverTimestamp()})),tab:()=>{S.tab=v;draw()},tg:()=>{S.open.has(v)?S.open.delete(v):S.open.add(v);draw()},st:()=>start(v),pause:()=>pause(sess(v)),done:()=>complete(sess(v)),res:()=>resume(sess(v)),ss:()=>sessDialog(v),se:()=>sessEdit(sess(v)),sf:()=>{S.sf=v;draw()},dis:()=>{S.err='';draw()},ch:()=>actForm(null,v),newact:()=>actForm(null,''),per:()=>{S.per=v;S.off=0;draw()},off:()=>{S.off+=+v;draw()},mode:()=>{S.mode=v;draw()},snap:()=>{S.snap=+v;draw()},zoom:()=>{S.slotH=Math.max(28,Math.min(80,(S.slotH||48)+(+v)*8));draw()},newentry:()=>entryDialog(),ee:()=>entryDialog(S.entries.find(i=>i.id===v)),lv:()=>{S.lvl=v||null;draw()},tl:()=>{S.tl=v||null;draw()},addhere:()=>actForm(null,S.lvl||''),addtl:()=>actForm(null,S.tl||''),de:()=>confirm(t('confirm'))&&run(()=>deleteDoc(dref('timeEntries',v))),
  newgoal:async()=>{const o=await form(t('goal'),[{k:'name',l:t('name'),r:1},{k:'a',l:t('act'),t:'select',o:actOpts()},{k:'p',l:t('period'),t:'select',o:[['day',t('day')],['week',t('weekW')],['month',t('month')]]},{k:'m',l:t('target'),t:'number',v:60,r:1}]);o&&run(()=>setDoc(dref('goals',crypto.randomUUID()),{name:o.name,activityId:o.a,period:o.p,target:+o.m,status:'active'}))},dg:()=>confirm(t('confirm'))&&run(()=>deleteDoc(dref('goals',v))),
  ea:()=>actForm(A(v)),ar:()=>run(()=>setDoc(dref('activities',v),{...clean(A(v)),archived:!A(v).archived})),da:()=>delAct(A(v)),mo:()=>{S.more=v;draw()},rep:()=>report(1),out:()=>signOut(auth),
  li:()=>run(()=>signInWithEmailAndPassword(auth,$('#em').value,$('#pw').value)),re:()=>run(()=>createUserWithEmailAndPassword(auth,$('#em').value,$('#pw').value)),rs:()=>run(async()=>{await sendPasswordResetEmail(auth,$('#em').value);toast('✓')}),go:()=>run(()=>signInWithPopup(auth,new GoogleAuthProvider()))};H[k]?.()});
