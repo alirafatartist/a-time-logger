@@ -130,3 +130,7 @@ dialog h3{margin:0 0 .8rem}dialog label{display:block;margin-block:.6rem;font-si
 .tile-actions .ta:hover{background:var(--a);color:#fff;border-color:var(--a)}
 .tile-actions .sub{position:static;inset:auto;flex:1}
 .tile:has(.tile-actions){padding-bottom:2.1rem}
+
+.cl-row.cl-sub{opacity:.92;font-size:.86rem}
+.cl-row.cl-sub .cl-name{color:var(--mut)}
+.cl-row.cl-sub .cl-dot{width:8px;height:8px;border-radius:2px}
