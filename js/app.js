@@ -10,7 +10,17 @@ const $=s=>document.querySelector(s),t=k=>T(S.prefs.lang,k),loc=()=>S.prefs.lang
 $('#dlg')?.addEventListener('cancel',ev=>ev.preventDefault());
 const col=n=>collection(db,'users',S.user.uid,n),dref=(...p)=>doc(db,'users',S.user.uid,...p);
 const toast=m=>{$('#toast').innerHTML=`<span>${e(m)}</span>`;setTimeout(()=>$('#toast').innerHTML='',3000)};
-const run=async f=>{try{await f()}catch(x){S.err=x.message;toast(x.message);draw()}};
+const authErr=x=>{const c=x?.code||'',m=x?.message||String(x);
+ if(/auth\/operation-not-allowed|OPERATION_NOT_ALLOWED/i.test(c+m))return t('authDisabled');
+ if(/auth\/invalid-api-key|API_KEY_INVALID|api key/i.test(c+m))return t('authBadKey');
+ if(/auth\/unauthorized-domain|UNAUTHORIZED_DOMAIN/i.test(c+m))return t('authDomain');
+ if(/auth\/invalid-credential|auth\/wrong-password|auth\/user-not-found|INVALID_LOGIN|INVALID_PASSWORD|EMAIL_NOT_FOUND/i.test(c+m))return t('authBadCred');
+ if(/auth\/email-already-in-use|EMAIL_EXISTS/i.test(c+m))return t('authExists');
+ if(/auth\/weak-password|WEAK_PASSWORD/i.test(c+m))return t('authWeak');
+ if(/auth\/invalid-email|INVALID_EMAIL/i.test(c+m))return t('authBadEmail');
+ if(/auth\/too-many-requests/i.test(c+m))return t('authTooMany');
+ return m};
+const run=async f=>{try{await f()}catch(x){const msg=authErr(x);S.err=msg;toast(msg);draw()}};
 const eff=()=>{const n=Date.now(),o=[...S.entries];for(const x of S.sess)x.intervals.forEach((i,k)=>o.push({id:x.id+'_'+k,sid:x.id,activityId:x.activityId,start:i.s,end:i.e??n,note:x.note||'',live:i.e==null}));return o};
 const A=id=>S.acts.find(a=>a.id===id);
 const ic=(a,c='')=>a?.img?`<img class="ic img ${c}" src="${e(a.img)}" alt="">`:a?.lucide?`<span class="ic ${c}" style="--c:${e(a.color||'#7c5cff')}"><i data-lucide="${e(a.lucide)}"></i></span>`:`<span class="ic emo ${c}">${e(a?.icon||'•')}</span>`;
@@ -342,7 +352,7 @@ document.addEventListener('click',async ev=>{const x=ev.target.closest('[data-x]
  const H={tpl:()=>tplDialog(),dup:()=>run(()=>setDoc(dref('activities',crypto.randomUUID()),{...clean(A(v)),name:A(v).name+' (copy)',createdAt:serverTimestamp()})),tab:()=>{S.tab=v;draw()},tg:()=>{S.open.has(v)?S.open.delete(v):S.open.add(v);draw()},st:()=>start(v),pause:()=>pause(sess(v)),done:()=>complete(sess(v)),res:()=>resume(sess(v)),ss:()=>sessDialog(v),se:()=>sessEdit(sess(v)),sf:()=>{S.sf=v;draw()},dis:()=>{S.err='';draw()},ch:()=>actForm(null,v),newact:()=>actForm(null,''),per:()=>{S.per=v;S.off=0;draw()},off:()=>{S.off+=+v;draw()},mode:()=>{S.mode=v;draw()},cuntr:()=>{S.chartUntr=!S.chartUntr;draw()},tg2:()=>{S.trendG=v;draw()},snap:()=>{S.snap=+v;draw()},zoom:()=>{S.slotH=Math.max(28,Math.min(80,(S.slotH||48)+(+v)*8));draw()},newentry:()=>entryDialog(),ee:()=>entryDialog(S.entries.find(i=>i.id===v)),lv:()=>{S.lvl=v||null;draw()},tl:()=>{S.tl=v||null;draw()},addhere:()=>actForm(null,S.lvl||''),addtl:()=>actForm(null,S.tl||''),de:()=>confirm(t('confirm'))&&run(()=>deleteDoc(dref('timeEntries',v))),
  newgoal:async()=>{const o=await form(t('goal'),[{k:'name',l:t('name'),r:1},{k:'a',l:t('act'),t:'select',o:actOpts()},{k:'p',l:t('period'),t:'select',o:[['day',t('day')],['week',t('weekW')],['month',t('month')]]},{k:'m',l:t('target'),t:'number',v:60,r:1}]);o&&run(()=>setDoc(dref('goals',crypto.randomUUID()),{name:o.name,activityId:o.a,period:o.p,target:+o.m,status:'active'}))},dg:()=>confirm(t('confirm'))&&run(()=>deleteDoc(dref('goals',v))),
  ea:()=>actForm(A(v)),ar:()=>run(()=>setDoc(dref('activities',v),{...clean(A(v)),archived:!A(v).archived})),da:()=>delAct(A(v)),mo:()=>{S.more=v;draw()},rep:()=>report(1),out:()=>signOut(auth),
- li:()=>run(()=>signInWithEmailAndPassword(auth,$('#em').value,$('#pw').value)),re:()=>run(()=>createUserWithEmailAndPassword(auth,$('#em').value,$('#pw').value)),rs:()=>run(async()=>{await sendPasswordResetEmail(auth,$('#em').value);toast('✓')}),go:()=>run(()=>signInWithPopup(auth,new GoogleAuthProvider()))};H[k]?.()});
+ li:()=>{const em=$('#em').value.trim(),pw=$('#pw').value;if(!em||!pw)return toast(t('authNeed'));run(()=>signInWithEmailAndPassword(auth,em,pw))},re:()=>{const em=$('#em').value.trim(),pw=$('#pw').value;if(!em||!pw)return toast(t('authNeed'));if(pw.length<6)return toast(t('authWeak'));run(()=>createUserWithEmailAndPassword(auth,em,pw))},rs:()=>{const em=$('#em').value.trim();if(!em)return toast(t('authNeed'));run(async()=>{await sendPasswordResetEmail(auth,em);toast('✓')})},go:()=>run(()=>signInWithPopup(auth,new GoogleAuthProvider()))};H[k]?.()});
 document.addEventListener('change',ev=>{const p=ev.target.dataset.p,r=ev.target.dataset.r;if(p)savePref({[p]:p==='weekStart'?+ev.target.value:ev.target.value});if(r){S.rep[r]=ev.target.type==='checkbox'?ev.target.checked:ev.target.value;draw()}});
 setInterval(()=>{for(const x of (S.curs||S.sess.filter(s=>s.status==='running'))){const el=document.querySelectorAll(`[data-tick="${CSS.escape(x.id)}"]`);el.forEach(n=>n.textContent=U.dur(sdur(x),1))}},1000);
 if(configured)onAuthStateChanged(auth,u=>{S.un.forEach(f=>f());S.user=u;if(u)subscribe();else{S.acts=[];S.entries=[];S.sess=[];S.curs=[];S.cur=null;draw()}});else draw();
