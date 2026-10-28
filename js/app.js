@@ -4,7 +4,7 @@ import {collection,doc,onSnapshot,setDoc,deleteDoc,writeBatch,query,orderBy,limi
 import {T} from './i18n.js';
 import * as U from './util.js';
 import {TPL} from './templates.js';
-const S={user:null,acts:[],entries:[],goals:[],cur:null,prefs:{lang:navigator.language.startsWith('ar')?'ar':'en',theme:'dark',weekStart:6},sess:[],curs:[],tab:'act',lvl:null,tl:null,open:new Set(),per:'day',off:0,mode:'list',chartUntr:true,trendG:'day',snap:5,slotH:48,more:'reports',sync:'loading',un:[],rep:{from:'',to:'',act:'',sub:true,notes:true,untr:true},_fc:null};
+const S={user:null,acts:[],entries:[],goals:[],cur:null,prefs:{lang:navigator.language.startsWith('ar')?'ar':'en',theme:'dark',weekStart:6},sess:[],curs:[],tab:'act',lvl:null,tl:null,typeFilter:'active',open:new Set(),per:'day',off:0,mode:'list',chartUntr:true,trendG:'day',snap:5,slotH:48,more:'reports',sync:'loading',un:[],rep:{from:'',to:'',act:'',sub:true,notes:true,untr:true},_fc:null};
 const $=s=>document.querySelector(s),t=k=>T(S.prefs.lang,k),loc=()=>S.prefs.lang==='ar'?'ar-EG':'en-GB',e=U.esc;
 // Prevent dialogs from closing when clicking the backdrop (Cancel / Escape buttons still work via form method=dialog or explicit close)
 $('#dlg')?.addEventListener('cancel',ev=>ev.preventDefault());
@@ -245,8 +245,24 @@ function saveCalEvent(ev){
 
 function prog(g){const[a,b]=U.range(g.period,0,S.prefs.weekStart),m=direct(a,b),v=subT(m,g.activityId)/6e4;return[v,Math.min(100,v/g.target*100)]}
 const vGoals=()=>`<button data-x="newgoal">＋ ${t('add')}</button>`+(S.goals.map(g=>{const[v,p]=prog(g);return `<div class="card">${e(g.name)} · ${nm(g.activityId)} <button class="d" data-x="dg:${g.id}" style="float:inline-end">✕</button><div class="bar"><div style="width:${p}%"></div></div><span class="mut">${Math.round(v)} / ${g.target} min (${Math.round(p)}%)</span></div>`}).join('')||`<p class="mut">${t('empty')}</p>`);
-const vTypes=()=>{const L=S.tl&&A(S.tl)?S.tl:null,list=S.acts.filter(a=>L?a.parentId===L:(!a.parentId||!A(a.parentId))).sort((x,y)=>(x.order||0)-(y.order||0));
- return `${L?`<div class="bar2"><button data-x="tl:${A(L).parentId||''}">‹ ${e(U.path(S.acts,L))}</button></div>`:''}<div class="tiles">${list.map(a=>`<div class="tile ${a.archived?'dim':''}" data-x="ea:${a.id}" role="button" tabindex="0">${ic(a)}<span class="n">${e(a.name)}</span>${(()=>{const k=S.acts.filter(c=>c.parentId===a.id).length;return k?`<button class="sub" data-x="tl:${a.id}" title="${k}" aria-label="open"><span class="sub-n">${k}</span><span class="sub-ar">›</span></button>`:''})()}</div>`).join('')}<div class="tile add" data-x="addtl">＋<span class="n">${t('add')}</span></div><div class="tile add" data-x="tpl">✨<span class="n">${t('templates')}</span></div></div>`};
+const vTypes=()=>{const L=S.tl&&A(S.tl)?S.tl:null,f=S.typeFilter||'active';
+ let list=S.acts.filter(a=>L?a.parentId===L:(!a.parentId||!A(a.parentId)));
+ if(f==='active')list=list.filter(a=>!a.archived);
+ else if(f==='archived')list=list.filter(a=>a.archived);
+ list=list.sort((x,y)=>(x.order||0)-(y.order||0));
+ const nAct=S.acts.filter(a=>!a.archived).length,nArch=S.acts.filter(a=>a.archived).length;
+ const filters=`<div class="tabs">${[['active',t('active')+' '+nAct],['archived',t('archived')+' '+nArch],['all',t('all')+' '+S.acts.length]].map(([k,l])=>`<button class="${f===k?'on':''}" data-x="tf:${k}">${l}</button>`).join('')}</div>`;
+ return `${L?`<div class="bar2"><button data-x="tl:${A(L).parentId||''}">‹ ${e(U.path(S.acts,L))}</button></div>`:''}${filters}
+ <p class="mut" style="margin:.3rem 0">${t('archHint')}</p>
+ <div class="tiles">${list.map(a=>{const k=S.acts.filter(c=>c.parentId===a.id&&(f==='all'||!c.archived===!a.archived||f!=='active')).length;
+  return `<div class="tile ${a.archived?'dim archived':''}" data-x="ea:${a.id}" role="button" tabindex="0">${ic(a)}<span class="n">${e(a.name)}</span>
+  ${a.archived?`<span class="arch-badge">${t('archived')}</span>`:''}
+  <div class="tile-actions">
+   <button class="ta" data-x="ar:${a.id}" title="${a.archived?t('unarchive'):t('archive')}">${a.archived?'↩':'📦'}</button>
+   ${S.acts.some(c=>c.parentId===a.id)?`<button class="sub" data-x="tl:${a.id}" title="${k}" aria-label="open"><span class="sub-n">${S.acts.filter(c=>c.parentId===a.id).length}</span><span class="sub-ar">›</span></button>`:''}
+  </div></div>`}).join('')}
+ ${f!=='archived'?`<div class="tile add" data-x="addtl">＋<span class="n">${t('add')}</span></div><div class="tile add" data-x="tpl">✨<span class="n">${t('templates')}</span></div>`:''}
+ </div>`};
 function report(go){const R=S.rep,from=R.from?+new Date(R.from+'T00:00'):U.range('month',0)[0],to=R.to?+new Date(R.to+'T00:00')+864e5:Date.now();const ids=R.act?(R.sub?U.subtree(S.acts,R.act):new Set([R.act])):null;
  const es=eff().filter(x=>x.end>from&&x.start<to&&(!ids||ids.has(x.activityId))).sort((x,y)=>x.start-y.start);const tot=es.reduce((s,x)=>s+U.clip(x,from,to),0);if(!go)return[es.length,tot];
  const rows=[['record_id','activity_id','activity','path','start_date','start_time','end_date','end_time','seconds','hh:mm:ss',...(R.notes?['note']:[])]];
@@ -276,14 +292,24 @@ function actForm(a,pid,tpl,cb){const d=$('#dlg');d.onclick=d.oninput=d.onchange=
  <label>${t('color')} <input type="color" name="color" value="${v.color}"></label>
  <div class="tabs">${[['lib',t('iconsT')],['emo',t('emojiT')],['img',t('imageT')]].map(([k,l])=>`<button type="button" class="${tab===k?'on':''}" data-t="${k}">${l}</button>`).join('')}</div>
  ${tab==='lib'?`<div class="ig">${LUC.map(n=>`<button type="button" class="${v.lucide===n?'on':''}" data-l="${n}"><i data-lucide="${n}"></i></button>`).join('')}</div>`:tab==='emo'?`<div class="ig">${EMO.map(m=>`<button type="button" data-m="${m}">${m}</button>`).join('')}</div><input name="emo" value="${e(v.icon)}" maxlength="4" placeholder="😀">`:`<div class="bar2" style="flex-direction:column;align-items:stretch;gap:.5rem"><input type="file" accept="image/*" data-f="1"><div class="bar2"><input name="imgurl" type="url" placeholder="${t('imgUrl')}" value="" style="flex:1"><button type="button" data-loadurl="1">${t('load')}</button></div>${v.img?`<button type="button" class="d" data-rm="1">${t('remove')}</button>`:''}</div>`}
- <p class="acts">${a?`<button type="button" data-dup="1" title="${t('dup')}">⧉</button><button type="button" data-arch="1">${t('archive')}</button><button type="button" class="d" data-del="1">${t('del')}</button>`:''}<button value="x" formnovalidate>${t('cancel')}</button><button class="p" value="ok">${t('save')}</button></p></form>`;window.lucide?.createIcons()};
+ <p class="acts">${a?`<button type="button" data-dup="1" title="${t('dup')}">⧉</button><button type="button" data-arch="1">${a.archived?t('unarchive'):t('archive')}</button><button type="button" class="d" data-del="1">${t('del')}</button>`:''}<button value="x" formnovalidate>${t('cancel')}</button><button class="p" value="ok">${t('save')}</button></p></form>`;window.lucide?.createIcons()};
  d.onclick=ev=>{const b=ev.target.closest('button'),q=b?.dataset;if(!q)return;if(q.dup){d.close();dupAct(a)}else if(q.arch){d.close();toggleArch(a)}else if(q.del){d.close();delAct(a)}else if(q.t){tab=q.t;R()}else if(q.l)set({lucide:q.l});else if(q.m)set({icon:q.m});else if(q.rm)set({lucide:'star'});else if(q.loadurl){const u=d.querySelector('[name=imgurl]')?.value?.trim();if(!u)return toast(t('badUrl'));toImg(u).then(img=>set({img})).catch(()=>toast(t('badUrl')))}};
  d.oninput=ev=>{const n=ev.target.name;if(n==='name')v.name=ev.target.value;else if(n==='pid')v.pid=ev.target.value;else if(n==='color'){v.color=ev.target.value;d.querySelector('.pv .ic')?.style.setProperty('--c',v.color)}else if(n==='emo'){v.icon=ev.target.value;v.lucide='';v.img=''}};
  d.onchange=async ev=>{if(!ev.target.dataset.f)return;const f=ev.target.files[0];if(!f||!f.type.startsWith('image/')||f.size>8e6)return toast('Image only (max 8 MB)');try{set({img:await toImg(f)})}catch{toast('Invalid image')}};
  d.onclose=()=>{if(d.returnValue!=='ok'||!v.name.trim()){cb?.(null);return}const id=a?.id||crypto.randomUUID();cb?.(id);run(()=>setDoc(dref('activities',id),{name:v.name.trim(),icon:v.icon,lucide:v.lucide,img:v.img,color:v.color,parentId:v.pid||null,order:a?.order??S.acts.length,archived:a?.archived||false,description:a?.description||'',createdAt:a?.createdAt||serverTimestamp()}))};
  d.returnValue='';R();if(!d.open)d.showModal()}
 const dupAct=a=>run(()=>setDoc(dref('activities',crypto.randomUUID()),{...clean(a),name:a.name+' (copy)',createdAt:serverTimestamp()}));
-const toggleArch=a=>run(()=>setDoc(dref('activities',a.id),{...clean(a),archived:!a.archived}));
+const toggleArch=async a=>{
+  if(!a)return;
+  const next=!a.archived;
+  const kidsAll=S.acts.filter(c=>c.parentId===a.id);
+  const alsoKids=next&&kidsAll.length&&confirm(t('archKids'));
+  const b=writeBatch(db);
+  b.set(dref('activities',a.id),{...clean(a),archived:next});
+  if(alsoKids)kidsAll.forEach(c=>b.set(dref('activities',c.id),{...clean(c),archived:true}));
+  await run(()=>b.commit());
+  toast(next?t('archivedOk'):t('unarchivedOk'));
+};
 function tplDialog(){const d=$('#dlg');d.onclick=d.oninput=d.onchange=d.onclose=null;const L=S.prefs.lang==='ar',sel=new Set();let cat='',q='',pid='';
  const items=TPL.map((r,i)=>{const p=r.split('|');return{i,id:'tpl_'+(p[0]+'_'+p[2]).replace(/\W/g,'').toLowerCase(),cat:L?p[1]:p[0],name:L?p[3]:p[2],lucide:p[4],color:p[5]}});
  const cats=[...new Set(items.map(x=>x.cat))],done=x=>S.acts.some(a=>a.id===x.id);
@@ -349,9 +375,9 @@ function bindDnD(){
   });
 }
 document.addEventListener('click',async ev=>{const x=ev.target.closest('[data-x]')?.dataset.x;if(!x)return;const[k,v]=x.split(/:(.*)/);
- const H={tpl:()=>tplDialog(),dup:()=>run(()=>setDoc(dref('activities',crypto.randomUUID()),{...clean(A(v)),name:A(v).name+' (copy)',createdAt:serverTimestamp()})),tab:()=>{S.tab=v;draw()},tg:()=>{S.open.has(v)?S.open.delete(v):S.open.add(v);draw()},st:()=>start(v),pause:()=>pause(sess(v)),done:()=>complete(sess(v)),res:()=>resume(sess(v)),ss:()=>sessDialog(v),se:()=>sessEdit(sess(v)),sf:()=>{S.sf=v;draw()},dis:()=>{S.err='';draw()},ch:()=>actForm(null,v),newact:()=>actForm(null,''),per:()=>{S.per=v;S.off=0;draw()},off:()=>{S.off+=+v;draw()},mode:()=>{S.mode=v;draw()},cuntr:()=>{S.chartUntr=!S.chartUntr;draw()},tg2:()=>{S.trendG=v;draw()},snap:()=>{S.snap=+v;draw()},zoom:()=>{S.slotH=Math.max(28,Math.min(80,(S.slotH||48)+(+v)*8));draw()},newentry:()=>entryDialog(),ee:()=>entryDialog(S.entries.find(i=>i.id===v)),lv:()=>{S.lvl=v||null;draw()},tl:()=>{S.tl=v||null;draw()},addhere:()=>actForm(null,S.lvl||''),addtl:()=>actForm(null,S.tl||''),de:()=>confirm(t('confirm'))&&run(()=>deleteDoc(dref('timeEntries',v))),
+ const H={tpl:()=>tplDialog(),dup:()=>run(()=>setDoc(dref('activities',crypto.randomUUID()),{...clean(A(v)),name:A(v).name+' (copy)',createdAt:serverTimestamp()})),tab:()=>{S.tab=v;draw()},tg:()=>{S.open.has(v)?S.open.delete(v):S.open.add(v);draw()},st:()=>start(v),pause:()=>pause(sess(v)),done:()=>complete(sess(v)),res:()=>resume(sess(v)),ss:()=>sessDialog(v),se:()=>sessEdit(sess(v)),sf:()=>{S.sf=v;draw()},dis:()=>{S.err='';draw()},ch:()=>actForm(null,v),newact:()=>actForm(null,''),per:()=>{S.per=v;S.off=0;draw()},off:()=>{S.off+=+v;draw()},mode:()=>{S.mode=v;draw()},cuntr:()=>{S.chartUntr=!S.chartUntr;draw()},tg2:()=>{S.trendG=v;draw()},snap:()=>{S.snap=+v;draw()},zoom:()=>{S.slotH=Math.max(28,Math.min(80,(S.slotH||48)+(+v)*8));draw()},newentry:()=>entryDialog(),ee:()=>entryDialog(S.entries.find(i=>i.id===v)),lv:()=>{S.lvl=v||null;draw()},tl:()=>{S.tl=v||null;draw()},tf:()=>{S.typeFilter=v;draw()},addhere:()=>actForm(null,S.lvl||''),addtl:()=>actForm(null,S.tl||''),de:()=>confirm(t('confirm'))&&run(()=>deleteDoc(dref('timeEntries',v))),
  newgoal:async()=>{const o=await form(t('goal'),[{k:'name',l:t('name'),r:1},{k:'a',l:t('act'),t:'select',o:actOpts()},{k:'p',l:t('period'),t:'select',o:[['day',t('day')],['week',t('weekW')],['month',t('month')]]},{k:'m',l:t('target'),t:'number',v:60,r:1}]);o&&run(()=>setDoc(dref('goals',crypto.randomUUID()),{name:o.name,activityId:o.a,period:o.p,target:+o.m,status:'active'}))},dg:()=>confirm(t('confirm'))&&run(()=>deleteDoc(dref('goals',v))),
- ea:()=>actForm(A(v)),ar:()=>run(()=>setDoc(dref('activities',v),{...clean(A(v)),archived:!A(v).archived})),da:()=>delAct(A(v)),mo:()=>{S.more=v;draw()},rep:()=>report(1),out:()=>signOut(auth),
+ ea:()=>actForm(A(v)),ar:()=>toggleArch(A(v)),da:()=>delAct(A(v)),mo:()=>{S.more=v;draw()},rep:()=>report(1),out:()=>signOut(auth),
  li:()=>{const em=$('#em').value.trim(),pw=$('#pw').value;if(!em||!pw)return toast(t('authNeed'));run(()=>signInWithEmailAndPassword(auth,em,pw))},re:()=>{const em=$('#em').value.trim(),pw=$('#pw').value;if(!em||!pw)return toast(t('authNeed'));if(pw.length<6)return toast(t('authWeak'));run(()=>createUserWithEmailAndPassword(auth,em,pw))},rs:()=>{const em=$('#em').value.trim();if(!em)return toast(t('authNeed'));run(async()=>{await sendPasswordResetEmail(auth,em);toast('✓')})},go:()=>run(()=>signInWithPopup(auth,new GoogleAuthProvider()))};H[k]?.()});
 document.addEventListener('change',ev=>{const p=ev.target.dataset.p,r=ev.target.dataset.r;if(p)savePref({[p]:p==='weekStart'?+ev.target.value:ev.target.value});if(r){S.rep[r]=ev.target.type==='checkbox'?ev.target.checked:ev.target.value;draw()}});
 setInterval(()=>{for(const x of (S.curs||S.sess.filter(s=>s.status==='running'))){const el=document.querySelectorAll(`[data-tick="${CSS.escape(x.id)}"]`);el.forEach(n=>n.textContent=U.dur(sdur(x),1))}},1000);
